@@ -20,7 +20,7 @@ A word carries one free-form note. Because fields like part of speech or pronunc
 
 - An always-on-top widget (240×72) showing a single word, rotating every 5 minutes
 - Click the widget to open the management panel: **Add / Not learned / Learned**
-- Each word carries one free-form "content" field — meaning, example sentence, notes, whatever helps you
+- Each word carries one free-form "content" field (meaning, example sentence, notes — whatever helps you). It is intentionally not split into part of speech, reading, and so on, so that you can write whatever actually helps you remember
 - Click a word in a list to edit it. The date it was added is recorded automatically and shown read-only
 - Checking a word marks it as learned and removes it from the rotation. **Unchecking never discards its learning history**
 - Light and dark themes, switchable from the button in the panel header. The first launch follows the OS setting; after that your choice is remembered
@@ -110,7 +110,7 @@ Tests need one extra dependency, kept separate so that simply running the app do
 
 - 常に最前面の小さなウィジェット（240×72）に単語を1語だけ表示し、5分ごとに切り替える
 - ウィジェットのクリックで管理パネルを開く（**登録／未学習／学習済み**）
-- 単語には自由記述の「内容」を1つだけ持たせる（意味・例文・メモなど何でも）
+- 単語には自由記述の「内容」を1つだけ持たせる（意味・例文・メモなど何でも）。品詞や読みに分割しないのは、覚えるために本当に役立つことを自由に書けるようにするため
 - リストの単語をクリックすると編集できる。登録日は自動で記録され、読み取り専用で表示される
 - チェックすると学習済みになり表示対象から外れる。**チェックを外しても学習の経緯は破棄されない**
 - ライト／ダークはパネルのヘッダーのボタンで切り替えられる。初回起動時は OS の設定に従い、以降は選んだ状態を記憶する
