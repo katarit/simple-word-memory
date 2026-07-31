@@ -142,7 +142,8 @@ class PanelWindow(QWidget):
         self._return_tab = TAB_UNLEARNED
         self._suppress_toggle = False
 
-        self.setWindowTitle("単語リマインダー")
+        # バージョンは OS のタイトルバーに出す（アプリ内ヘッダーには置かない）。
+        self.setWindowTitle(f"単語リマインダー  ver. {__version__}")
         self.setFixedSize(theme.PANEL_WIDTH, theme.PANEL_HEIGHT)
         self.setObjectName("panelRoot")
         self.setStyleSheet(theme.panel_qss(tokens))
@@ -164,14 +165,9 @@ class PanelWindow(QWidget):
         title = QLabel("単語リマインダー")
         title.setObjectName("panelTitle")
         layout.addWidget(title)
-
-        version = QLabel(f"（ver. {__version__}）")
-        version.setObjectName("panelVersion")
-        layout.addWidget(version, 0, Qt.AlignVCenter)
-
         layout.addStretch(1)
 
-        self._theme_button = QPushButton("ダーク")
+        self._theme_button = QPushButton("Dark")
         self._theme_button.setObjectName("themeToggle")
         self._theme_button.setCursor(Qt.PointingHandCursor)
         self._theme_button.setFixedHeight(theme.THEME_BUTTON_HEIGHT)
@@ -381,7 +377,7 @@ class PanelWindow(QWidget):
     def apply_theme(self, tokens: dict[str, str], dark: bool) -> None:
         self.setStyleSheet(theme.panel_qss(tokens))
         # ボタンには「押すと何になるか」を出す。
-        self._theme_button.setText("ライト" if dark else "ダーク")
+        self._theme_button.setText("Light" if dark else "Dark")
 
     def show_tab(self, index: int) -> None:
         self._stack.setCurrentIndex(index)

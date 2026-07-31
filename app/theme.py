@@ -118,10 +118,6 @@ def panel_qss(t: dict[str, str]) -> str:
         font-size: 15px;
         font-weight: 600;
     }}
-    #panelVersion {{
-        font-size: 11px;
-        color: {t["ink_muted"]};
-    }}
     #tabBar {{
         background-color: {t["surface"]};
         border-bottom: 1px solid {t["border"]};
