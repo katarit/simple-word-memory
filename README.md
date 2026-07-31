@@ -10,15 +10,17 @@ Windows のデスクトップに常時表示される小さなウィジェット
 
 ### Why this exists
 
-Reviewing vocabulary requires you to decide to review. This tool removes that decision: a small widget sits on your desktop and keeps putting a word in front of you while you work on something else.
+Add a word you want to remember, and that is the whole workload. From there a small widget on your desktop shows one word at a time, choosing what to show from a forgetting-curve model — so review happens while you get on with something else.
 
-It deliberately shows the **word only** — no meaning, no part of speech. The goal is not to test recall, but to increase the number of times you meet the word. Meanings live in the management panel, available whenever you want to check them.
+It shows the word only. Its job is to raise the number of times you meet a word; the meaning is in the management panel whenever you want it.
+
+A word carries one free-form note. Because fields like part of speech or pronunciation belong to a particular language's grammar, keeping it to one subject and one note lets the same tool follow you across languages — and covers anything you want to keep resurfacing, not only words.
 
 ### Features
 
 - An always-on-top widget (240×72) showing a single word, rotating every 5 minutes
 - Click the widget to open the management panel: **Add / Not learned / Learned**
-- Each word carries one free-form "content" field (meaning, example sentence, notes — whatever helps you). It is intentionally not split into part of speech, reading, and so on, so that you can write whatever actually helps you remember
+- Each word carries one free-form "content" field — meaning, example sentence, notes, whatever helps you
 - Click a word in a list to edit it. The date it was added is recorded automatically and shown read-only
 - Checking a word marks it as learned and removes it from the rotation. **Unchecking never discards its learning history**
 - Light and dark themes, switchable from the button in the panel header. The first launch follows the OS setting; after that your choice is remembered
@@ -98,15 +100,17 @@ Tests need one extra dependency, kept separate so that simply running the app do
 
 ### 何のためのツールか
 
-単語の復習には「復習しよう」と決める手間があります。このツールはその決断を不要にします。小さなウィジェットがデスクトップに居座り、別の作業をしている間も単語を目の前に出し続けます。
+覚えたいと思った単語を簡単に登録すると、あとは忘却曲線にもとづいて、デスクトップのウィジェットにシンプルに表示し続けます。「復習しよう」と決める手間なく、別の作業をしている間に単語に触れられます。
 
-表示するのは**単語だけ**です。意味も品詞も出しません。狙いは想起のテストではなく、単語に出会う回数を増やすことです。意味は管理パネルにあり、確認したいときにいつでも見られます。
+表示するのは単語だけです。単語に出会う回数を増やすことが役割で、意味は管理パネルでいつでも確認できます。
+
+単語が持つのは自由記述のメモ1つだけです。品詞や発音といった項目は特定言語の文法に属するため、「対象1つ＋メモ1つ」に留めることで、学習する言語が変わっても同じ形のまま使えます。単語に限らず、覚えておきたいこと全般にも応用できます。
 
 ### 機能
 
 - 常に最前面の小さなウィジェット（240×72）に単語を1語だけ表示し、5分ごとに切り替える
 - ウィジェットのクリックで管理パネルを開く（**登録／未学習／学習済み**）
-- 単語には自由記述の「内容」を1つだけ持たせる（意味・例文・メモなど何でも）。品詞や読みに分割しないのは、覚えるために本当に役立つことを自由に書けるようにするため
+- 単語には自由記述の「内容」を1つだけ持たせる（意味・例文・メモなど何でも）
 - リストの単語をクリックすると編集できる。登録日は自動で記録され、読み取り専用で表示される
 - チェックすると学習済みになり表示対象から外れる。**チェックを外しても学習の経緯は破棄されない**
 - ライト／ダークはパネルのヘッダーのボタンで切り替えられる。初回起動時は OS の設定に従い、以降は選んだ状態を記憶する
