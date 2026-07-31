@@ -1,7 +1,7 @@
 """常時最前面の単語表示ウィジェット。
 
-凍結モック tasks/designs/confirmed/widget.html の 1:1 移植。
 表示するのは単語だけで、内容（意味・メモ）は出さない。
+枠なしウィンドウのため、終了は右クリックメニューから行う。
 """
 
 from __future__ import annotations

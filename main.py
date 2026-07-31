@@ -1,7 +1,7 @@
 """words-reminder のエントリポイント。
 
 ウィジェットとパネルを組み立て、5 分ごとの出題ティックを回す。
-出題ロジックそのものは app/scheduler.py（ADR-0002）にある。
+出題ロジックそのものは app/scheduler.py にある。
 """
 
 from __future__ import annotations
@@ -127,7 +127,7 @@ class AppController:
         word = db.get_word(self._conn, word_id)
         if word is None:
             return
-        # ADR-0002: 表示中の単語の内容を確認した＝想起に失敗した、とみなす。
+        # 表示中の単語の内容を確認した＝想起に失敗した、とみなす。
         if word_id == self._current_word_id:
             db.record_lapse(self._conn, word_id, scheduler.lapsed_strength(word))
         self._panel.show_edit(word)

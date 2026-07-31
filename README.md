@@ -35,7 +35,7 @@ R = exp(-elapsed_days / strength_days)
 Only words whose `R` has fallen below **0.90** become candidates, and among those the most forgotten one is shown. Each time a word is shown with credit, its strength grows, so the interval widens: roughly 2.5 h → 4 h → 6.5 h → 10 h → 16 h → 26 h → 35 h.
 
 - A newly added word has never been shown, so its retention is treated as 0 and it appears immediately. **The day you add a word is the day it appears most often.**
-- When no word is due, a *filler* word is shown so the widget is never blank — but strength is **not** updated. Showing a word again minutes after you saw it produces no spacing benefit, so it earns no credit.
+- When nothing is due, another word is shown so the widget is never blank — but **this does not count as a review**. Seeing a word again minutes after you last saw it does nothing for memory, so neither the strength nor the count is updated.
 - If you open the panel and look at the content of the word currently on the widget, that is treated as "I could not recall it": strength is halved and the word returns sooner.
 - Because this is passive exposure rather than verified recall, strength is capped at 14 days. The tool does not claim retention it cannot observe.
 
@@ -66,7 +66,10 @@ Drag the widget to move it; its position is restored on the next launch. Left-cl
 
 ### Tests
 
+Tests need one extra dependency, kept separate so that simply running the app does not install it:
+
 ```
+.venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\python -m pytest
 ```
 
@@ -120,7 +123,7 @@ R = exp(-経過日数 / 強さ(日))
 `R` が **0.90** を下回った単語だけが出題対象になり、その中で最も忘れている単語を表示します。クレジットありで表示されるたびに強さが伸びるため、間隔は約 2.5時間 → 4時間 → 6.5時間 → 10時間 → 16時間 → 26時間 → 35時間 と広がります。
 
 - 登録直後の単語は未表示のため保持率0として扱われ、すぐに出ます。**登録した当日がいちばん高頻度**です
-- 出題対象がないときは画面を空にしないための**埋め草**を表示しますが、強さは更新しません。数分前に見た単語をもう一度見ても間隔効果は得られないため、成果として数えない設計です
+- 出題対象が1つもないときは、ウィジェットが空にならないよう別の単語を表示します。ただし**これは復習として数えません**（直前に見たばかりの単語をもう一度見ても記憶には効かないため、強さも表示回数も更新しません）
 - ウィジェットに出ている単語の内容をパネルで開いた場合、「思い出せなかった」とみなして強さを半減させ、早めに再出題します
 - 想起を確認できない受動的な露出であるため、強さの上限は14日に制限しています。観測できない定着を主張しない設計です
 
@@ -151,7 +154,10 @@ python -m venv .venv
 
 ### テスト
 
+テストには追加の依存が1つ必要です。アプリを動かすだけの人に入らないよう分けてあります。
+
 ```
+.venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\python -m pytest
 ```
 
@@ -172,4 +178,8 @@ python -m venv .venv
 
 MIT License. Copyright (c) 2026 katarit. See [LICENSE](LICENSE).
 
+Third-party dependencies are distributed under their respective licenses. In particular, PySide6 (Qt for Python) is **not** covered by this repository's MIT license — it is available under LGPL v3, GPL, or a commercial Qt license. This repository distributes source code only. If you build and redistribute a standalone binary, review the Qt and PySide6 licensing terms separately.
+
 MIT ライセンスで公開しています。詳細は [LICENSE](LICENSE) を参照してください。
+
+依存ライブラリはそれぞれのライセンスに従います。とくに PySide6（Qt for Python）は本リポジトリの MIT ライセンスの対象**ではなく**、LGPL v3 / GPL / 商用 Qt ライセンスのいずれかで提供されています。本リポジトリはソースコードのみを配布しています。実行ファイルをビルドして再配布する場合は、Qt および PySide6 のライセンス条件を別途確認してください。
