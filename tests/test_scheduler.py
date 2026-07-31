@@ -68,7 +68,7 @@ def test_most_forgotten_due_word_wins():
 
 
 def test_recently_shown_words_are_not_credited():
-    """絶対閾値のゲート: まだ覚えている語ばかりなら埋め草に落ちる。"""
+    """絶対閾値のゲート: まだ覚えている語ばかりなら復習として数えない表示になる。"""
     just_shown = [
         make_word(1, strength=1.0, last_shown=NOW - timedelta(minutes=5)),
         make_word(2, strength=1.0, last_shown=NOW - timedelta(minutes=10)),
@@ -78,7 +78,7 @@ def test_recently_shown_words_are_not_credited():
 
 
 def test_filler_rotates_by_last_filler_at():
-    """埋め草は同じ語が居座らないよう last_filler_at の古い順に回る。"""
+    """画面を埋めるだけの表示は、同じ語が居座らないよう last_filler_at の古い順に回る。"""
     recent_filler = make_word(
         1, strength=1.0, last_shown=NOW - timedelta(minutes=5), last_filler=NOW - timedelta(minutes=5)
     )

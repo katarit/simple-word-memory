@@ -7,7 +7,8 @@ UI にも sqlite にも依存しない純粋なロジック。テストしやす
 - 推定保持率 R = exp(-t / S)。t は最終表示からの経過日数、S は記憶強度（日）。
 - R <= TARGET_R の語だけが出題対象（絶対閾値のゲート）。プールの大小に
   よらず「まだ覚えている語を無駄に再表示しない」を成立させるための要。
-- 対象がなければ埋め草を出すが、強度は更新しない（詰め込みに報酬を与えない）。
+- 対象がなければ、画面を空にしないために別の単語を出すが、これは復習として
+  数えない（直前に見た単語をもう一度見ても記憶には効かないため）。
 """
 
 from __future__ import annotations
@@ -56,7 +57,8 @@ class Selection:
 
     word: Word
     credited: bool
-    """True なら通常の出題（強度を更新する）。False なら埋め草。"""
+    """True なら復習1回として数える表示（強度を更新する）。
+    False なら画面を埋めるためだけの表示（記録を更新しない）。"""
 
     retention: float
 
@@ -96,8 +98,8 @@ def select(words: list[Word], now: datetime, previous_id: int | None = None) -> 
         best = min(pool, key=lambda item: (item[0], item[1].id))
         return Selection(word=best[1], credited=True, retention=best[0])
 
-    # 出題対象がない＝全語が最近表示済み。画面を空にしないための埋め草を、
-    # 埋め草表示が最も古い語から回す（同じ語が居座らないようにするため）。
+    # 出題対象がない＝全語が最近表示済み。画面を空にしないための表示なので、
+    # 最後にこの用途で出してから最も長い語を選ぶ（同じ語が居座らないように）。
     best = min(pool, key=lambda item: (_filler_key(item[1]), item[0], item[1].id))
     return Selection(word=best[1], credited=False, retention=best[0])
 

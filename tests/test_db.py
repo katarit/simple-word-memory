@@ -58,7 +58,7 @@ def test_set_learned_keeps_scheduling_state(conn):
 
 
 def test_record_filler_does_not_touch_strength(conn):
-    """埋め草は強度・表示回数・last_shown_at を更新しない。"""
+    """画面を埋めるためだけの表示では、強度・表示回数・last_shown_at を更新しない。"""
     word_id = db.add_word(conn, "ephemeral")
     shown_at = datetime(2026, 7, 30, tzinfo=timezone.utc)
     db.record_shown(conn, word_id, 1.0, shown_at)

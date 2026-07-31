@@ -164,11 +164,12 @@ def record_shown(conn: sqlite3.Connection, word_id: int, strength_days: float, n
 
 
 def record_filler(conn: sqlite3.Connection, word_id: int, now: datetime) -> None:
-    """埋め草表示を記録する。
+    """画面を埋めるためだけの表示を記録する。
 
-    埋め草は強度・表示回数・last_shown_at を更新しない（間隔をあけずに再表示
-    しても記憶効果がないため、成果として数えない）。埋め草同士のローテーション
-    のためだけに last_filler_at を進める。
+    出題対象の単語がないとき、ウィジェットを空にしないために出す表示。直前に
+    見たばかりの単語をもう一度見ても記憶には効かないので、これは復習1回として
+    数えない。よって強度・表示回数・last_shown_at は更新せず、同じ単語が
+    居座らないようにするための last_filler_at だけを進める。
     """
     conn.execute("UPDATE words SET last_filler_at = ? WHERE id = ?", (to_iso(now), word_id))
     conn.commit()
