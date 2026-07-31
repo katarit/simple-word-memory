@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app import theme
+from app import __version__, theme
 from app.db import Word
 
 TAB_ADD = 0
@@ -164,6 +164,11 @@ class PanelWindow(QWidget):
         title = QLabel("単語リマインダー")
         title.setObjectName("panelTitle")
         layout.addWidget(title)
+
+        version = QLabel(f"（ver. {__version__}）")
+        version.setObjectName("panelVersion")
+        layout.addWidget(version, 0, Qt.AlignVCenter)
+
         layout.addStretch(1)
 
         self._theme_button = QPushButton("ダーク")
