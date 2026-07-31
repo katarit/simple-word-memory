@@ -40,7 +40,7 @@ def test_update_word(conn):
 
 
 def test_set_learned_keeps_scheduling_state(conn):
-    """ADR-0002: チェックの切り替えで学習の経緯を破棄しない。"""
+    """チェックの切り替えで学習の経緯を破棄しない。"""
     word_id = db.add_word(conn, "ephemeral")
     now = db.utcnow()
     db.record_shown(conn, word_id, 1.6, now)
@@ -58,7 +58,7 @@ def test_set_learned_keeps_scheduling_state(conn):
 
 
 def test_record_filler_does_not_touch_strength(conn):
-    """ADR-0002: 埋め草は強度・表示回数・last_shown_at を更新しない。"""
+    """埋め草は強度・表示回数・last_shown_at を更新しない。"""
     word_id = db.add_word(conn, "ephemeral")
     shown_at = datetime(2026, 7, 30, tzinfo=timezone.utc)
     db.record_shown(conn, word_id, 1.0, shown_at)

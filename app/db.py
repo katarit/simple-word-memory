@@ -140,8 +140,8 @@ def list_words(conn: sqlite3.Connection, learned: bool | None = None) -> list[Wo
 def set_learned(conn: sqlite3.Connection, word_id: int, learned: bool, now: datetime | None = None) -> None:
     """学習済みフラグの切り替え。
 
-    ADR-0002: このフラグは表示するかどうかだけを決める。強度・表示回数・
-    最終表示時刻・想起失敗回数はチェックを外しても破棄しない。
+    このフラグは表示するかどうかだけを決める。強度・表示回数・最終表示時刻・
+    想起失敗回数は、チェックを外しても破棄しない（学び直しでも経緯を保つ）。
     """
     conn.execute(
         "UPDATE words SET learned = ?, learned_at = ? WHERE id = ?",
@@ -166,8 +166,9 @@ def record_shown(conn: sqlite3.Connection, word_id: int, strength_days: float, n
 def record_filler(conn: sqlite3.Connection, word_id: int, now: datetime) -> None:
     """埋め草表示を記録する。
 
-    ADR-0002: 埋め草は強度・表示回数・last_shown_at を更新しない。
-    埋め草同士のローテーションのためだけに last_filler_at を進める。
+    埋め草は強度・表示回数・last_shown_at を更新しない（間隔をあけずに再表示
+    しても記憶効果がないため、成果として数えない）。埋め草同士のローテーション
+    のためだけに last_filler_at を進める。
     """
     conn.execute("UPDATE words SET last_filler_at = ? WHERE id = ?", (to_iso(now), word_id))
     conn.commit()

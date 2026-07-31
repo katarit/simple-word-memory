@@ -1,4 +1,4 @@
-"""ADR-0002 のスケジューリングモデルの検証。"""
+"""出題スケジューリングモデルの検証。"""
 
 from datetime import datetime, timedelta, timezone
 

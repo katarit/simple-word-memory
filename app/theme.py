@@ -1,7 +1,7 @@
 """デザイントークンと QSS。
 
-値は凍結モック（tasks/designs/confirmed/widget.html, panel.html）の CSS
-カスタムプロパティからの転写。目分量で決めた値はここに入れない。
+配色と寸法の値はすべてここに集約する。個々のウィジェット側で色や余白を
+直書きしない（テーマ切り替えで追従しなくなるため）。
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ DARK = {
 
 FONT_FAMILY = '"Segoe UI Variable", "Segoe UI", "Yu Gothic UI", sans-serif'
 
-# 凍結モックからの寸法転写（8pt グリッド）
+# 寸法（8pt グリッド）
 WIDGET_WIDTH = 240
 WIDGET_HEIGHT = 72
 WIDGET_RADIUS = 16

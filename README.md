@@ -66,7 +66,10 @@ Drag the widget to move it; its position is restored on the next launch. Left-cl
 
 ### Tests
 
+Tests need one extra dependency, kept separate so that simply running the app does not install it:
+
 ```
+.venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\python -m pytest
 ```
 
@@ -151,7 +154,10 @@ python -m venv .venv
 
 ### テスト
 
+テストには追加の依存が1つ必要です。アプリを動かすだけの人に入らないよう分けてあります。
+
 ```
+.venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\python -m pytest
 ```
 
@@ -172,4 +178,8 @@ python -m venv .venv
 
 MIT License. Copyright (c) 2026 katarit. See [LICENSE](LICENSE).
 
+Third-party dependencies are distributed under their respective licenses. In particular, PySide6 (Qt for Python) is **not** covered by this repository's MIT license — it is available under LGPL v3, GPL, or a commercial Qt license. This repository distributes source code only. If you build and redistribute a standalone binary, review the Qt and PySide6 licensing terms separately.
+
 MIT ライセンスで公開しています。詳細は [LICENSE](LICENSE) を参照してください。
+
+依存ライブラリはそれぞれのライセンスに従います。とくに PySide6（Qt for Python）は本リポジトリの MIT ライセンスの対象**ではなく**、LGPL v3 / GPL / 商用 Qt ライセンスのいずれかで提供されています。本リポジトリはソースコードのみを配布しています。実行ファイルをビルドして再配布する場合は、Qt および PySide6 のライセンス条件を別途確認してください。
