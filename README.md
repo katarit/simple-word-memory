@@ -10,9 +10,11 @@ Windows のデスクトップに常時表示される小さなウィジェット
 
 ### Why this exists
 
-Reviewing vocabulary requires you to decide to review. This tool removes that decision: a small widget sits on your desktop and keeps putting a word in front of you while you work on something else.
+Add a word you want to remember, and that is the whole workload. From there a small widget on your desktop shows one word at a time, choosing what to show from a forgetting-curve model — so review happens while you get on with something else.
 
-It deliberately shows the **word only** — no meaning, no part of speech. The goal is not to test recall, but to increase the number of times you meet the word. Meanings live in the management panel, available whenever you want to check them.
+It shows the word only. Its job is to raise the number of times you meet a word; the meaning is in the management panel whenever you want it.
+
+A word carries one free-form note. Because fields like part of speech or pronunciation belong to a particular language's grammar, keeping it to one subject and one note lets the same tool follow you across languages — and covers anything you want to keep resurfacing, not only words.
 
 ### Features
 
@@ -98,9 +100,11 @@ Tests need one extra dependency, kept separate so that simply running the app do
 
 ### 何のためのツールか
 
-単語の復習には「復習しよう」と決める手間があります。このツールはその決断を不要にします。小さなウィジェットがデスクトップに居座り、別の作業をしている間も単語を目の前に出し続けます。
+覚えたいと思った単語を簡単に登録すると、あとは忘却曲線にもとづいて、デスクトップのウィジェットにシンプルに表示し続けます。「復習しよう」と決める手間なく、別の作業をしている間に単語に触れられます。
 
-表示するのは**単語だけ**です。意味も品詞も出しません。狙いは想起のテストではなく、単語に出会う回数を増やすことです。意味は管理パネルにあり、確認したいときにいつでも見られます。
+表示するのは単語だけです。単語に出会う回数を増やすことが役割で、意味は管理パネルでいつでも確認できます。
+
+単語が持つのは自由記述のメモ1つだけです。品詞や発音といった項目は特定言語の文法に属するため、「対象1つ＋メモ1つ」に留めることで、学習する言語が変わっても同じ形のまま使えます。単語に限らず、覚えておきたいこと全般にも応用できます。
 
 ### 機能
 
