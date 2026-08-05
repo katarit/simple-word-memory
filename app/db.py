@@ -18,11 +18,9 @@ CREATE TABLE IF NOT EXISTS words (
     added_at       TEXT    NOT NULL,
     learned        INTEGER NOT NULL DEFAULT 0,
     learned_at     TEXT,
-    show_count     INTEGER NOT NULL DEFAULT 0,
-    strength_days  REAL,
-    last_shown_at  TEXT,
     last_filler_at TEXT,
-    lapse_count    INTEGER NOT NULL DEFAULT 0
+    opportunity_count INTEGER NOT NULL DEFAULT 0,
+    last_opportunity_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -44,11 +42,9 @@ class Word:
     added_at: datetime
     learned: bool
     learned_at: datetime | None
-    show_count: int
-    strength_days: float | None
-    last_shown_at: datetime | None
     last_filler_at: datetime | None
-    lapse_count: int
+    opportunity_count: int = 0
+    last_opportunity_at: datetime | None = None
 
 
 def utcnow() -> datetime:
@@ -69,8 +65,31 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    _migrate_words_schema(conn)
     conn.commit()
     return conn
+
+
+def _column_names(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _migrate_words_schema(conn: sqlite3.Connection) -> None:
+    columns = _column_names(conn, "words")
+    added_count = "opportunity_count" not in columns
+    added_last = "last_opportunity_at" not in columns
+
+    if added_count:
+        conn.execute(
+            "ALTER TABLE words ADD COLUMN opportunity_count INTEGER NOT NULL DEFAULT 0"
+        )
+    if added_last:
+        conn.execute("ALTER TABLE words ADD COLUMN last_opportunity_at TEXT")
+
+    if added_count and "show_count" in columns:
+        conn.execute("UPDATE words SET opportunity_count = show_count")
+    if added_last and "last_shown_at" in columns:
+        conn.execute("UPDATE words SET last_opportunity_at = last_shown_at")
 
 
 def _row_to_word(row: sqlite3.Row) -> Word:
@@ -81,11 +100,9 @@ def _row_to_word(row: sqlite3.Row) -> Word:
         added_at=from_iso(row["added_at"]),
         learned=bool(row["learned"]),
         learned_at=from_iso(row["learned_at"]),
-        show_count=row["show_count"],
-        strength_days=row["strength_days"],
-        last_shown_at=from_iso(row["last_shown_at"]),
         last_filler_at=from_iso(row["last_filler_at"]),
-        lapse_count=row["lapse_count"],
+        opportunity_count=row["opportunity_count"],
+        last_opportunity_at=from_iso(row["last_opportunity_at"]),
     )
 
 
@@ -140,8 +157,8 @@ def list_words(conn: sqlite3.Connection, learned: bool | None = None) -> list[Wo
 def set_learned(conn: sqlite3.Connection, word_id: int, learned: bool, now: datetime | None = None) -> None:
     """学習済みフラグの切り替え。
 
-    このフラグは表示するかどうかだけを決める。強度・表示回数・最終表示時刻・
-    想起失敗回数は、チェックを外しても破棄しない（学び直しでも経緯を保つ）。
+    このフラグは表示するかどうかだけを決める。想起機会の履歴は、
+    チェックを外しても破棄しない（学び直しでも経緯を保つ）。
     """
     conn.execute(
         "UPDATE words SET learned = ?, learned_at = ? WHERE id = ?",
@@ -150,15 +167,15 @@ def set_learned(conn: sqlite3.Connection, word_id: int, learned: bool, now: date
     conn.commit()
 
 
-def record_shown(conn: sqlite3.Connection, word_id: int, strength_days: float, now: datetime) -> None:
-    """クレジットありの表示を記録する（強度を更新する）。"""
+def record_opportunity(conn: sqlite3.Connection, word_id: int, now: datetime) -> None:
     conn.execute(
-        """UPDATE words
-              SET show_count = show_count + 1,
-                  strength_days = ?,
-                  last_shown_at = ?
-            WHERE id = ?""",
-        (strength_days, to_iso(now), word_id),
+        """
+        UPDATE words
+           SET opportunity_count = opportunity_count + 1,
+               last_opportunity_at = ?
+         WHERE id = ?
+        """,
+        (to_iso(now), word_id),
     )
     conn.commit()
 
@@ -166,24 +183,12 @@ def record_shown(conn: sqlite3.Connection, word_id: int, strength_days: float, n
 def record_filler(conn: sqlite3.Connection, word_id: int, now: datetime) -> None:
     """画面を埋めるためだけの表示を記録する。
 
-    出題対象の単語がないとき、ウィジェットを空にしないために出す表示。直前に
-    見たばかりの単語をもう一度見ても記憶には効かないので、これは復習1回として
-    数えない。よって強度・表示回数・last_shown_at は更新せず、同じ単語が
-    居座らないようにするための last_filler_at だけを進める。
+    正式候補がないときもウィジェットを空にしないために出す表示であり、
+    想起機会の履歴は進めない。同じ単語が居座らないようにするための
+    last_filler_at だけを更新する。
     """
     conn.execute("UPDATE words SET last_filler_at = ? WHERE id = ?", (to_iso(now), word_id))
     conn.commit()
-
-
-def record_lapse(conn: sqlite3.Connection, word_id: int, strength_days: float) -> None:
-    """想起失敗（表示中の単語の内容をユーザーが確認した）を記録する。"""
-    conn.execute(
-        "UPDATE words SET strength_days = ?, lapse_count = lapse_count + 1 WHERE id = ?",
-        (strength_days, word_id),
-    )
-    conn.commit()
-
-
 def get_setting(conn: sqlite3.Connection, key: str, default: str | None = None) -> str | None:
     row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
     return row["value"] if row else default

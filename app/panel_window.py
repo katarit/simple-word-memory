@@ -275,8 +275,7 @@ class PanelWindow(QWidget):
         layout.addSpacing(8)
         self._add_note = QPlainTextEdit()
         self._add_note.setPlaceholderText("意味・例文・メモなど自由に記入")
-        self._add_note.setFixedHeight(88)
-        layout.addWidget(self._add_note)
+        layout.addWidget(self._add_note, 1)
 
         layout.addSpacing(8)
         self._add_hint = QLabel("")
@@ -284,7 +283,6 @@ class PanelWindow(QWidget):
         self._add_hint.setWordWrap(True)
         layout.addWidget(self._add_hint)
 
-        layout.addStretch(1)
         button_row = QHBoxLayout()
         button_row.addStretch(1)
         add_button = QPushButton("追加")
@@ -345,8 +343,7 @@ class PanelWindow(QWidget):
         layout.addWidget(self._field_label("内容（任意）"))
         layout.addSpacing(8)
         self._edit_note = QPlainTextEdit()
-        self._edit_note.setFixedHeight(88)
-        layout.addWidget(self._edit_note)
+        layout.addWidget(self._edit_note, 1)
 
         layout.addSpacing(8)
         self._edit_hint = QLabel("")
@@ -354,7 +351,6 @@ class PanelWindow(QWidget):
         self._edit_hint.setWordWrap(True)
         layout.addWidget(self._edit_hint)
 
-        layout.addStretch(1)
         button_row = QHBoxLayout()
         button_row.addStretch(1)
         cancel = QPushButton("戻る")
