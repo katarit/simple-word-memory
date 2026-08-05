@@ -29,6 +29,7 @@ class AppController:
         self._conn = conn
         self._current_word_id: int | None = None
         self._previous_word_id: int | None = None
+        self._consecutive_new_opportunities = 0
 
         # 保存された選択があればそれを使い、初回だけ OS の設定に従う。
         saved_theme = db.get_setting(conn, SETTING_THEME)
@@ -64,17 +65,28 @@ class AppController:
     def tick(self) -> None:
         now = db.utcnow()
         unlearned = db.list_words(self._conn, learned=False)
-        selection = scheduler.select(unlearned, now, self._previous_word_id)
+        selection = scheduler.select(
+            unlearned,
+            now,
+            self._previous_word_id,
+            self._consecutive_new_opportunities,
+        )
 
         if selection is None:
             self._current_word_id = None
             self._previous_word_id = None
+            self._consecutive_new_opportunities = 0
             self._widget.show_placeholder()
             return
 
         word = selection.word
-        if selection.credited:
-            db.record_shown(self._conn, word.id, scheduler.next_strength(word, selection.retention), now)
+        if selection.kind is scheduler.SelectionKind.OPPORTUNITY:
+            was_new = word.opportunity_count == 0
+            db.record_opportunity(self._conn, word.id, now)
+            if was_new:
+                self._consecutive_new_opportunities += 1
+            else:
+                self._consecutive_new_opportunities = 0
         else:
             db.record_filler(self._conn, word.id, now)
 
@@ -103,8 +115,6 @@ class AppController:
             return
         self._panel.clear_add_form(f"「{text}」を追加しました")
         self._refresh_panel()
-        # 未表示の語は最優先になるため、すぐ画面へ反映する。
-        self.tick()
 
     def _on_word_updated(self, word_id: int, text: str, note: str) -> None:
         try:
@@ -121,15 +131,14 @@ class AppController:
         db.set_learned(self._conn, word_id, learned)
         self._refresh_panel()
         if learned and word_id == self._current_word_id:
-            self.tick()
+            self._current_word_id = None
+            self._previous_word_id = None
+            self._widget.show_placeholder()
 
     def _on_word_opened(self, word_id: int) -> None:
         word = db.get_word(self._conn, word_id)
         if word is None:
             return
-        # 表示中の単語の内容を確認した＝想起に失敗した、とみなす。
-        if word_id == self._current_word_id:
-            db.record_lapse(self._conn, word_id, scheduler.lapsed_strength(word))
         self._panel.show_edit(word)
 
     # --- テーマ切り替えと終了 -----------------------------------------------

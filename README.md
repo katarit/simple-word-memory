@@ -1,8 +1,8 @@
 # simple-word-memory
 
-A small always-on-top desktop widget for Windows that shows one word you are trying to learn, and rotates it every five minutes based on a forgetting-curve model.
+A small always-on-top desktop widget for Windows that shows one word you are trying to learn and rotates it every five minutes to create spaced recall opportunities.
 
-Windows のデスクトップに常時表示される小さなウィジェットで、覚え中の単語を1語ずつ表示し、忘却曲線にもとづいて5分ごとに切り替えます。
+Windows のデスクトップに常時表示される小さなウィジェットで、覚え中の単語を1語ずつ表示し、間隔を空けた想起機会を作りながら5分ごとに切り替えます。
 
 ---
 
@@ -10,7 +10,7 @@ Windows のデスクトップに常時表示される小さなウィジェット
 
 ### Why this exists
 
-Add a word you want to remember, and that is the whole workload. From there a small widget on your desktop shows one word at a time, choosing what to show from a forgetting-curve model — so review happens while you get on with something else.
+Add a word you want to remember, and that is the whole workload. From there a small widget on your desktop shows one word at a time, spacing formal recall opportunities while you get on with something else.
 
 It shows the word only. Its job is to raise the number of times you meet a word; the meaning is in the management panel whenever you want it.
 
@@ -28,20 +28,28 @@ A word carries one free-form note. Because fields like part of speech or pronunc
 
 ### How words are chosen
 
-Each word carries a continuous *memory strength*. From the time elapsed since it was last shown, the estimated retention is
+The app does **not** estimate memory strength, retention, recall success, or failure. A word appearing on screen means only that the app provided an opportunity to recall it; it does not mean that a successful review occurred.
 
-```
-R = exp(-elapsed_days / strength_days)
-```
+Formal recall opportunities use these minimum intervals:
 
-Only words whose `R` has fallen below **0.90** become candidates, and among those the most forgotten one is shown. Each time a word is shown with credit, its strength grows, so the interval widens: roughly 2.5 h → 4 h → 6.5 h → 10 h → 16 h → 26 h → 35 h.
+**immediately → 2 hours → 4 hours → 8 hours → 1 day → 3 days (then stays at 3 days)**
 
-- A newly added word has never been shown, so its retention is treated as 0 and it appears immediately. **The day you add a word is the day it appears most often.**
-- When nothing is due, another word is shown so the widget is never blank — but **this does not count as a review**. Seeing a word again minutes after you last saw it does nothing for memory, so neither the strength nor the count is updated.
-- If you open the panel and look at the content of the word currently on the widget, that is treated as "I could not recall it": strength is halved and the word returns sooner.
-- Because this is passive exposure rather than verified recall, strength is capped at 14 days. The tool does not claim retention it cannot observe.
+- “Immediately” means eligible at the next regular five-minute selection. Adding or editing data never creates an extra scheduling tick.
+- New and previously presented words share the same eligibility timeline. The word whose eligible time is oldest is normally chosen.
+- If two new words have been presented consecutively and an eligible older word exists, the older word is inserted next. This is a bias guard, not a fixed new/old ratio.
+- The widget still rotates about every five minutes. When no word is formally eligible, it rotates a filler word instead. A filler keeps the display useful but does **not** advance the formal opportunity history.
+- If alternatives exist, the currently displayed word is not immediately counted as another formal opportunity.
+- Opening the management panel, viewing details, or editing a word is scheduling-neutral. These actions are not treated as evidence that the word was remembered or forgotten.
+- Words marked as learned are excluded from rotation. Unchecking them restores them with their previous opportunity history intact.
 
-The constants are informed initial values based on well-established principles (the spacing effect, desirable difficulty, exponential forgetting). They are not derived from a specific published algorithm such as SM-2 or FSRS, and are collected in one place in `app/scheduler.py` so they can be tuned in real use.
+The shape of the schedule—spaced rather than massed presentation, initially expanding intervals, and no unlimited expansion—is informed by research on distributed practice and retrieval spacing:
+
+- [Cepeda et al. (2006), distributed-practice meta-analysis](https://pubmed.ncbi.nlm.nih.gov/16719566/)
+- [Cepeda et al. (2008), spacing and retention horizon](https://pubmed.ncbi.nlm.nih.gov/19076480/)
+- [Karpicke & Roediger (2007), expanding versus equal retrieval](https://doi.org/10.1037/0278-7393.33.4.704)
+- [Bahrick et al. (1993), long-term foreign-vocabulary maintenance](https://doi.org/10.1111/j.1467-9280.1993.tb00571.x)
+
+Those studies support the general scheduling shape, not this app's exact hour and day values. The concrete intervals are product judgments for a passive, five-minute desktop rotation that receives no correctness input.
 
 ### Requirements
 
@@ -90,8 +98,8 @@ Tests need one extra dependency, kept separate so that simply running the app do
 ### Known limits and possible next steps
 
 - This is an aid for increasing exposure, not a replacement for active recall practice
-- The scheduling constants are initial values and are expected to be tuned through real use
-- Words marked as learned are never shown again; periodic re-checking for long-term retention is a candidate for future work
+- The opportunity intervals are initial product judgments and are expected to be tuned through real use
+- Words marked as learned are not shown unless the user unchecks them
 - No standalone executable or Windows startup registration yet
 
 ---
@@ -100,7 +108,7 @@ Tests need one extra dependency, kept separate so that simply running the app do
 
 ### 何のためのツールか
 
-覚えたいと思った単語を簡単に登録すると、あとは忘却曲線にもとづいて、デスクトップのウィジェットにシンプルに表示し続けます。「復習しよう」と決める手間なく、別の作業をしている間に単語に触れられます。
+覚えたいと思った単語を簡単に登録すると、あとは間隔を空けた想起機会として、デスクトップのウィジェットにシンプルに表示し続けます。「復習しよう」と決める手間なく、別の作業をしている間に単語に触れられます。
 
 表示するのは単語だけです。単語に出会う回数を増やすことが役割で、意味は管理パネルでいつでも確認できます。
 
@@ -118,20 +126,28 @@ Tests need one extra dependency, kept separate so that simply running the app do
 
 ### 出題の仕組み
 
-単語ごとに連続値の**記憶の強さ**を持ちます。最終表示からの経過時間から、推定保持率を次の式で求めます。
+このアプリは、**記憶の強さ、保持率、想起の成功・失敗を推定しません**。画面に単語が出たという事実は「思い出す機会を提供した」ことだけを表し、復習成功とはみなしません。
 
-```
-R = exp(-経過日数 / 強さ(日))
-```
+正式な想起機会は、次の最小間隔で提供します。
 
-`R` が **0.90** を下回った単語だけが出題対象になり、その中で最も忘れている単語を表示します。クレジットありで表示されるたびに強さが伸びるため、間隔は約 2.5時間 → 4時間 → 6.5時間 → 10時間 → 16時間 → 26時間 → 35時間 と広がります。
+**すぐ → 2時間 → 4時間 → 8時間 → 1日 → 3日（以後3日固定）**
 
-- 登録直後の単語は未表示のため保持率0として扱われ、すぐに出ます。**登録した当日がいちばん高頻度**です
-- 出題対象が1つもないときは、ウィジェットが空にならないよう別の単語を表示します。ただし**これは復習として数えません**（直前に見たばかりの単語をもう一度見ても記憶には効かないため、強さも表示回数も更新しません）
-- ウィジェットに出ている単語の内容をパネルで開いた場合、「思い出せなかった」とみなして強さを半減させ、早めに再出題します
-- 想起を確認できない受動的な露出であるため、強さの上限は14日に制限しています。観測できない定着を主張しない設計です
+- 「すぐ」は次の通常の5分選出で候補になるという意味です。登録や編集操作から追加の選出は行いません
+- 新規語と過去語は同じ候補時刻の基準で扱い、通常は候補時刻を最も超過した語を選びます
+- 新規語が2回連続し、期限を迎えた過去語がある場合は、次に過去語を挟みます。これは偏り防止であり、固定の新規・過去比率ではありません
+- ウィジェット自体は約5分ごとに切り替わります。正式候補がない場合は別の語をフィラー表示しますが、**正式な想起機会の履歴は進めません**
+- 他の語がある場合、現在表示中の同じ語をすぐ次の正式機会として数えません
+- 管理パネルを開く、内容を見る、編集する、といった操作はスケジューリングに影響しません。覚えていた・忘れていたという証拠には利用しません
+- 学習済み語は表示対象外です。チェックを外した場合は、以前の想起機会履歴を保持したまま復帰します
 
-定数は、間隔効果・望ましい困難・指数的忘却といった確立した原理にもとづく初期値です。SM-2 や FSRS などの特定のアルゴリズムから導出したものではありません。実運用で調整できるよう `app/scheduler.py` の1か所にまとめています。
+集中提示を避けて間隔を空けること、初期に間隔を広げること、無制限に拡張しないことは、分散学習と検索間隔に関する次の研究を参考にしています。
+
+- [Cepeda et al. (2006)：分散学習のメタ分析](https://pubmed.ncbi.nlm.nih.gov/16719566/)
+- [Cepeda et al. (2008)：保持期間と有効な学習間隔](https://pubmed.ncbi.nlm.nih.gov/19076480/)
+- [Karpicke & Roediger (2007)：拡張間隔と等間隔の検索練習](https://doi.org/10.1037/0278-7393.33.4.704)
+- [Bahrick et al. (1993)：外国語語彙の長期維持](https://doi.org/10.1111/j.1467-9280.1993.tb00571.x)
+
+これらの研究はスケジュールの形を支持する根拠であり、本アプリの具体的な時間値を直接導出したものではありません。具体値は、正誤入力を求めず約5分で表示を切り替えるデスクトップアプリに合わせた判断値です。
 
 ### 動作要件
 
@@ -172,8 +188,8 @@ python -m venv .venv
 ### 既知の制約・今後の候補
 
 - 能動的な想起練習の代替ではなく、接触回数を増やすための補助です
-- 出題ロジックの定数は初期値であり、実運用しながらの調整を前提としています
-- 学習済みにした単語は再表示されません。長期保持のための定期的な再確認は今後の検討候補です
+- 想起機会の間隔は初期判断値であり、実運用しながらの調整を前提としています
+- 学習済みにした単語は、ユーザーがチェックを外すまで表示されません
 - 単体実行ファイル化と Windows 自動起動への登録は未対応です
 
 ---
