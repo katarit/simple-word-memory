@@ -7,12 +7,14 @@
 from __future__ import annotations
 
 import sys
+import sqlite3
 from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from app import db, scheduler, theme
+from app.meaning_window import MeaningWindow
 from app.panel_window import PanelWindow
 from app.widget_window import WidgetWindow
 
@@ -30,6 +32,7 @@ class AppController:
         self._current_word_id: int | None = None
         self._previous_word_id: int | None = None
         self._consecutive_new_opportunities = 0
+        self._last_manual_next_display_token: int | None = None
 
         # 保存された選択があればそれを使い、初回だけ OS の設定に従う。
         saved_theme = db.get_setting(conn, SETTING_THEME)
@@ -38,9 +41,13 @@ class AppController:
 
         self._widget = WidgetWindow(tokens)
         self._panel = PanelWindow(tokens)
+        self._meaning = MeaningWindow(tokens)
         self._panel.apply_theme(tokens, self._dark)
 
-        self._widget.clicked.connect(self._open_panel)
+        self._widget.clicked.connect(self._open_quick_entry_and_meaning)
+        self._widget.panel_requested.connect(self._open_panel)
+        self._widget.next_requested.connect(self._on_next_requested)
+        self._widget.drag_started.connect(self._meaning.hide)
         self._widget.moved.connect(self._save_position)
         self._widget.quit_requested.connect(self._quit)
         self._panel.word_added.connect(self._on_word_added)
@@ -63,6 +70,7 @@ class AppController:
 
     # --- 出題ティック -------------------------------------------------------
     def tick(self) -> None:
+        self._meaning.hide()
         now = db.utcnow()
         unlearned = db.list_words(self._conn, learned=False)
         selection = scheduler.select(
@@ -76,6 +84,7 @@ class AppController:
             self._current_word_id = None
             self._previous_word_id = None
             self._consecutive_new_opportunities = 0
+            self._widget.set_can_advance(False)
             self._widget.show_placeholder()
             return
 
@@ -92,6 +101,7 @@ class AppController:
 
         self._current_word_id = word.id
         self._previous_word_id = word.id
+        self._widget.set_can_advance(len(unlearned) > 1)
         self._widget.show_word(word.text)
 
     # --- パネル操作 ---------------------------------------------------------
@@ -101,11 +111,46 @@ class AppController:
         self._panel.raise_()
         self._panel.activateWindow()
 
+    def _open_quick_entry_and_meaning(self) -> None:
+        was_visible = self._panel.isVisible()
+        self._refresh_panel()
+        self._panel.show()
+        if not was_visible:
+            self._panel.show_add_for_quick_entry()
+        self._panel.raise_()
+        self._panel.activateWindow()
+
+        if self._current_word_id is None:
+            self._meaning.hide()
+            return
+        word = db.get_word(self._conn, self._current_word_id)
+        if word is None:
+            self._meaning.hide()
+            return
+        self._meaning.show_note(word.note, self._widget.frameGeometry())
+
+    def _on_next_requested(self, display_token: int) -> None:
+        if display_token == self._last_manual_next_display_token:
+            return
+        if self._current_word_id is None:
+            return
+        if len(db.list_words(self._conn, learned=False)) <= 1:
+            return
+
+        try:
+            db.record_manual_next(self._conn, self._current_word_id, db.utcnow())
+        except sqlite3.Error:
+            return
+
+        self._last_manual_next_display_token = display_token
+        self._meaning.hide()
+        self.tick()
+        self._timer.start()
+
     def _refresh_panel(self) -> None:
-        self._panel.set_words(
-            db.list_words(self._conn, learned=False),
-            db.list_words(self._conn, learned=True),
-        )
+        unlearned = db.list_words(self._conn, learned=False)
+        self._panel.set_words(unlearned, db.list_words(self._conn, learned=True))
+        self._widget.set_can_advance(len(unlearned) > 1)
 
     def _on_word_added(self, text: str, note: str) -> None:
         try:
@@ -125,14 +170,17 @@ class AppController:
         self._refresh_panel()
         self._panel.leave_edit_after_save()
         if word_id == self._current_word_id:
-            self._widget.show_word(text)
+            self._meaning.hide()
+            self._widget.update_word_text(text)
 
     def _on_learned_toggled(self, word_id: int, learned: bool) -> None:
         db.set_learned(self._conn, word_id, learned)
         self._refresh_panel()
         if learned and word_id == self._current_word_id:
+            self._meaning.hide()
             self._current_word_id = None
             self._previous_word_id = None
+            self._widget.set_can_advance(False)
             self._widget.show_placeholder()
 
     def _on_word_opened(self, word_id: int) -> None:
@@ -147,10 +195,12 @@ class AppController:
         tokens = theme.tokens(self._dark)
         self._widget.apply_theme(tokens)
         self._panel.apply_theme(tokens, self._dark)
+        self._meaning.apply_theme(tokens)
         db.set_setting(self._conn, SETTING_THEME, "dark" if self._dark else "light")
 
     def _quit(self) -> None:
         self._timer.stop()
+        self._meaning.close()
         self._panel.close()
         self._widget.close()
         self._app.quit()

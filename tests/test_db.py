@@ -21,6 +21,9 @@ def test_add_and_list(conn):
     assert words[0].opportunity_count == 0
     assert words[0].last_opportunity_at is None
     assert words[0].last_filler_at is None
+    assert words[0].manual_next_action_count == 0
+    assert words[0].last_manual_next_at is None
+    assert words[0].manual_next_bonus_pending is False
 
 
 def test_add_rejects_duplicate(conn):
@@ -80,6 +83,34 @@ def test_record_filler_does_not_advance_opportunity(conn):
     assert word.last_filler_at == filler_at
 
 
+def test_record_manual_next_records_action_and_sets_one_pending_bonus(conn):
+    word_id = db.add_word(conn, "ephemeral")
+    first = datetime(2026, 8, 4, 9, 5, tzinfo=timezone.utc)
+    second = first + timedelta(minutes=5)
+
+    db.record_manual_next(conn, word_id, first)
+    db.record_manual_next(conn, word_id, second)
+
+    word = db.get_word(conn, word_id)
+    assert word.manual_next_action_count == 2
+    assert word.last_manual_next_at == second
+    assert word.manual_next_bonus_pending is True
+
+
+def test_record_opportunity_consumes_pending_manual_next_bonus(conn):
+    word_id = db.add_word(conn, "ephemeral")
+    manual_next_at = datetime(2026, 8, 4, 9, 5, tzinfo=timezone.utc)
+    opportunity_at = manual_next_at + timedelta(hours=4)
+    db.record_manual_next(conn, word_id, manual_next_at)
+
+    db.record_opportunity(conn, word_id, opportunity_at)
+
+    word = db.get_word(conn, word_id)
+    assert word.opportunity_count == 1
+    assert word.manual_next_action_count == 1
+    assert word.manual_next_bonus_pending is False
+
+
 def test_connect_migrates_legacy_scheduling_history(tmp_path):
     path = tmp_path / "legacy.db"
     legacy = sqlite3.connect(path)
@@ -118,7 +149,18 @@ def test_connect_migrates_legacy_scheduling_history(tmp_path):
     assert word.opportunity_count == 4
     assert word.last_opportunity_at == shown_at
     columns = {row["name"] for row in migrated.execute("PRAGMA table_info(words)")}
-    assert {"show_count", "strength_days", "opportunity_count", "last_opportunity_at"} <= columns
+    assert {
+        "show_count",
+        "strength_days",
+        "opportunity_count",
+        "last_opportunity_at",
+        "manual_next_action_count",
+        "last_manual_next_at",
+        "manual_next_bonus_pending",
+    } <= columns
+    assert word.manual_next_action_count == 0
+    assert word.last_manual_next_at is None
+    assert word.manual_next_bonus_pending is False
     migrated.close()
 
 

@@ -20,7 +20,10 @@ CREATE TABLE IF NOT EXISTS words (
     learned_at     TEXT,
     last_filler_at TEXT,
     opportunity_count INTEGER NOT NULL DEFAULT 0,
-    last_opportunity_at TEXT
+    last_opportunity_at TEXT,
+    manual_next_action_count INTEGER NOT NULL DEFAULT 0,
+    last_manual_next_at TEXT,
+    manual_next_bonus_pending INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -45,6 +48,9 @@ class Word:
     last_filler_at: datetime | None
     opportunity_count: int = 0
     last_opportunity_at: datetime | None = None
+    manual_next_action_count: int = 0
+    last_manual_next_at: datetime | None = None
+    manual_next_bonus_pending: bool = False
 
 
 def utcnow() -> datetime:
@@ -85,6 +91,18 @@ def _migrate_words_schema(conn: sqlite3.Connection) -> None:
         )
     if added_last:
         conn.execute("ALTER TABLE words ADD COLUMN last_opportunity_at TEXT")
+    if "manual_next_action_count" not in columns:
+        conn.execute(
+            "ALTER TABLE words ADD COLUMN "
+            "manual_next_action_count INTEGER NOT NULL DEFAULT 0"
+        )
+    if "last_manual_next_at" not in columns:
+        conn.execute("ALTER TABLE words ADD COLUMN last_manual_next_at TEXT")
+    if "manual_next_bonus_pending" not in columns:
+        conn.execute(
+            "ALTER TABLE words ADD COLUMN "
+            "manual_next_bonus_pending INTEGER NOT NULL DEFAULT 0"
+        )
 
     if added_count and "show_count" in columns:
         conn.execute("UPDATE words SET opportunity_count = show_count")
@@ -103,6 +121,9 @@ def _row_to_word(row: sqlite3.Row) -> Word:
         last_filler_at=from_iso(row["last_filler_at"]),
         opportunity_count=row["opportunity_count"],
         last_opportunity_at=from_iso(row["last_opportunity_at"]),
+        manual_next_action_count=row["manual_next_action_count"],
+        last_manual_next_at=from_iso(row["last_manual_next_at"]),
+        manual_next_bonus_pending=bool(row["manual_next_bonus_pending"]),
     )
 
 
@@ -172,7 +193,27 @@ def record_opportunity(conn: sqlite3.Connection, word_id: int, now: datetime) ->
         """
         UPDATE words
            SET opportunity_count = opportunity_count + 1,
-               last_opportunity_at = ?
+               last_opportunity_at = ?,
+               manual_next_bonus_pending = 0
+         WHERE id = ?
+        """,
+        (to_iso(now), word_id),
+    )
+    conn.commit()
+
+
+def record_manual_next(
+    conn: sqlite3.Connection,
+    word_id: int,
+    now: datetime,
+) -> None:
+    """明示的な次送りを記録し、次の正式機会だけを1段延長する。"""
+    conn.execute(
+        """
+        UPDATE words
+           SET manual_next_action_count = manual_next_action_count + 1,
+               last_manual_next_at = ?,
+               manual_next_bonus_pending = 1
          WHERE id = ?
         """,
         (to_iso(now), word_id),

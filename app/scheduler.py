@@ -42,7 +42,10 @@ def next_eligible_at(word: Word) -> datetime:
     """次の正式な想起機会を提供できる最も早い時刻を返す。"""
     if word.opportunity_count == 0 or word.last_opportunity_at is None:
         return word.added_at
-    return word.last_opportunity_at + opportunity_interval(word.opportunity_count)
+    bonus_steps = 1 if word.manual_next_bonus_pending else 0
+    return word.last_opportunity_at + opportunity_interval(
+        word.opportunity_count + bonus_steps
+    )
 
 
 def select(

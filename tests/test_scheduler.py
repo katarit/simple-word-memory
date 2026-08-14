@@ -18,6 +18,7 @@ def make_word(
     last_filler: datetime | None = None,
     added_at: datetime | None = None,
     text: str | None = None,
+    manual_next_bonus_pending: bool = False,
 ) -> Word:
     return Word(
         id=word_id,
@@ -29,6 +30,7 @@ def make_word(
         last_filler_at=last_filler,
         opportunity_count=opportunity_count,
         last_opportunity_at=last_opportunity,
+        manual_next_bonus_pending=manual_next_bonus_pending,
     )
 
 
@@ -65,6 +67,28 @@ def test_presented_word_waits_for_its_minimum_interval():
     selection = scheduler.select([word], NOW)
     assert selection is not None
     assert selection.kind is scheduler.SelectionKind.FILLER
+
+
+def test_pending_manual_next_bonus_extends_only_the_next_interval_one_step():
+    word = make_word(
+        1,
+        opportunity_count=2,
+        last_opportunity=NOW,
+        manual_next_bonus_pending=True,
+    )
+
+    assert scheduler.next_eligible_at(word) == NOW + timedelta(hours=8)
+
+
+def test_pending_manual_next_bonus_stops_at_three_day_cap():
+    word = make_word(
+        1,
+        opportunity_count=50,
+        last_opportunity=NOW,
+        manual_next_bonus_pending=True,
+    )
+
+    assert scheduler.next_eligible_at(word) == NOW + timedelta(days=3)
 
 
 def test_empty_pool_returns_none():

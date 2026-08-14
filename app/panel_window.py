@@ -379,6 +379,11 @@ class PanelWindow(QWidget):
         self._tabs[index].setChecked(True)
         self._style_tabs(index)
 
+    def show_add_for_quick_entry(self) -> None:
+        """新規登録タブを開き、単語欄へ入力を移す。"""
+        self.show_tab(TAB_ADD)
+        self._add_text.setFocus(Qt.OtherFocusReason)
+
     def set_words(self, unlearned: list[Word], learned: list[Word]) -> None:
         """リストを描き直す。QWidget.render() と衝突するため render とは名付けない。"""
         self._fill_list(self._unlearned_layout, unlearned, "未学習の単語はありません")
