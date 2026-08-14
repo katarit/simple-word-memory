@@ -45,6 +45,12 @@ WIDGET_RADIUS = 16
 WIDGET_PADDING_X = 16
 WIDGET_WORD_SIZE = 22
 
+MEANING_WIDTH = 240
+MEANING_MIN_HEIGHT = 64
+MEANING_MAX_HEIGHT = 240
+MEANING_GAP = 8
+MEANING_RADIUS = 12
+
 PANEL_WIDTH = 384
 PANEL_HEIGHT = 520
 PANEL_HEADER_HEIGHT = 56
@@ -94,6 +100,33 @@ def widget_qss(t: dict[str, str]) -> str:
         color: {t["ink_muted"]};
         background: transparent;
     }}
+    """
+
+
+def meaning_qss(t: dict[str, str]) -> str:
+    """単語ウィジェット直下に一時表示する内容カード。"""
+    return f"""
+    QPlainTextEdit#meaningText {{
+        font-family: {FONT_FAMILY};
+        font-size: 14px;
+        color: {t["ink"]};
+        background-color: rgba({t["surface_rgb"]}, 0.96);
+        border: 1px solid {t["widget_edge"]};
+        border-radius: {MEANING_RADIUS}px;
+        padding: 12px;
+        selection-background-color: transparent;
+    }}
+    QScrollBar:vertical {{
+        background: transparent;
+        width: 8px;
+        margin: 8px 2px 8px 0;
+    }}
+    QScrollBar::handle:vertical {{
+        background: {t["border"]};
+        border-radius: 4px;
+        min-height: 24px;
+    }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
     """
 
 

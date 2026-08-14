@@ -4,7 +4,7 @@ import pytest
 from PySide6.QtWidgets import QApplication, QSizePolicy
 
 from app import theme
-from app.panel_window import PanelWindow
+from app.panel_window import TAB_ADD, TAB_LEARNED, PanelWindow
 
 
 @pytest.fixture(scope="module")
@@ -33,4 +33,17 @@ def test_content_editors_are_not_fixed_to_88_pixels(qapp, dark):
                 is not QSizePolicy.Policy.Expanding
             )
 
+    panel.close()
+
+
+def test_quick_entry_opens_add_tab_and_focuses_word_field(qapp):
+    panel = PanelWindow(theme.tokens(False))
+    panel.show()
+    panel.show_tab(TAB_LEARNED)
+
+    panel.show_add_for_quick_entry()
+    qapp.processEvents()
+
+    assert panel._stack.currentIndex() == TAB_ADD
+    assert panel.focusWidget() is panel._add_text
     panel.close()
