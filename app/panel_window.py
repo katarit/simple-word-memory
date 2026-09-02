@@ -71,6 +71,30 @@ class ElidedLabel(QLabel):
         super().setText(self.fontMetrics().elidedText(self._full_text, Qt.ElideRight, max(self.width(), 0)))
 
 
+class NoteEdit(QPlainTextEdit):
+    """変換中もプレースホルダーが重ならない複数行入力。
+
+    QPlainTextEdit は日本語入力の未確定文字列（preedit）を「文書は空」と
+    見なすため、変換を確定するまでプレースホルダーを描き続け、入力中の
+    文字がその上に重なる。未確定のあいだだけプレースホルダーを外して
+    避ける。QLineEdit は preedit を考慮するので同じ対処は要らない。
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._placeholder = ""
+
+    def setPlaceholderText(self, text: str) -> None:  # noqa: N802 - Qt の命名に合わせる
+        self._placeholder = text
+        super().setPlaceholderText(text)
+
+    def inputMethodEvent(self, event) -> None:  # noqa: N802 - Qt の命名に合わせる
+        super().inputMethodEvent(event)
+        wanted = "" if event.preeditString() else self._placeholder
+        if super().placeholderText() != wanted:
+            super().setPlaceholderText(wanted)
+
+
 class WordRow(QFrame):
     """1 単語ぶんのリスト行。"""
 
@@ -273,7 +297,7 @@ class PanelWindow(QWidget):
         layout.addSpacing(20)
         layout.addWidget(self._field_label("内容（任意）"))
         layout.addSpacing(8)
-        self._add_note = QPlainTextEdit()
+        self._add_note = NoteEdit()
         self._add_note.setPlaceholderText("意味・例文・メモなど自由に記入")
         layout.addWidget(self._add_note, 1)
 
@@ -342,7 +366,7 @@ class PanelWindow(QWidget):
         layout.addSpacing(20)
         layout.addWidget(self._field_label("内容（任意）"))
         layout.addSpacing(8)
-        self._edit_note = QPlainTextEdit()
+        self._edit_note = NoteEdit()
         layout.addWidget(self._edit_note, 1)
 
         layout.addSpacing(8)
