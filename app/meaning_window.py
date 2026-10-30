@@ -7,6 +7,7 @@ from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import QApplication, QPlainTextEdit, QVBoxLayout, QWidget
 
 from app import theme
+from app.i18n import Strings
 
 
 def popup_position(anchor: QRect, popup_size: QSize, available: QRect) -> QPoint:
@@ -22,8 +23,9 @@ def popup_position(anchor: QRect, popup_size: QSize, available: QRect) -> QPoint
 
 
 class MeaningWindow(QWidget):
-    def __init__(self, tokens: dict[str, str], parent: QWidget | None = None) -> None:
+    def __init__(self, tokens: dict[str, str], strings: Strings, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._s = strings
         self.setWindowFlags(
             Qt.FramelessWindowHint
             | Qt.WindowStaysOnTopHint
@@ -48,7 +50,7 @@ class MeaningWindow(QWidget):
         self.setStyleSheet(theme.meaning_qss(tokens))
 
     def show_note(self, note: str, anchor: QRect) -> None:
-        content = note.strip() or "内容未登録"
+        content = note.strip() or self._s("meaning_empty")
         self._editor.setPlainText(content)
         metrics = QFontMetrics(self._editor.font())
         bounds = metrics.boundingRect(

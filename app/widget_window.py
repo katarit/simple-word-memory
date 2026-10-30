@@ -10,6 +10,7 @@ from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QVBoxLayout, QWidget
 
 from app import theme
+from app.i18n import Strings
 
 DRAG_THRESHOLD_PX = 4
 """これを超えて動いたらドラッグ扱いにし、クリックとみなさない。"""
@@ -23,15 +24,16 @@ class WidgetWindow(QWidget):
     next_requested = Signal(int)
     quit_requested = Signal()
 
-    def __init__(self, tokens: dict[str, str], parent: QWidget | None = None) -> None:
+    def __init__(self, tokens: dict[str, str], strings: Strings, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._s = strings
         self._press_pos: QPoint | None = None
         self._dragging = False
         self._display_token = 0
         self._has_word = False
         self._can_advance = False
 
-        self.setWindowTitle("単語リマインダー")
+        self.setWindowTitle(strings("app_name"))
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
@@ -70,11 +72,11 @@ class WidgetWindow(QWidget):
         self._label.setText(self._elide(text))
         self._refresh_style()
 
-    def show_placeholder(self, text: str = "登録単語なし") -> None:
+    def show_placeholder(self) -> None:
         self._display_token += 1
         self._has_word = False
         self._label.setObjectName("widgetEmpty")
-        self._label.setText(text)
+        self._label.setText(self._s("widget_empty"))
         self._refresh_style()
 
     def _elide(self, text: str) -> str:
@@ -95,16 +97,16 @@ class WidgetWindow(QWidget):
 
     def _create_context_menu(self) -> QMenu:
         menu = QMenu(self)
-        next_action = menu.addAction("次の単語")
+        next_action = menu.addAction(self._s("menu_next"))
         next_action.setEnabled(self._has_word and self._can_advance)
         next_action.triggered.connect(
             lambda: self.next_requested.emit(self._display_token)
         )
         menu.addSeparator()
-        open_action = menu.addAction("管理パネルを開く")
+        open_action = menu.addAction(self._s("menu_manage"))
         open_action.triggered.connect(self.panel_requested.emit)
         menu.addSeparator()
-        quit_action = menu.addAction("終了")
+        quit_action = menu.addAction(self._s("menu_exit"))
         quit_action.triggered.connect(self.quit_requested.emit)
         return menu
 

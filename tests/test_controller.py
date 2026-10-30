@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from app import db
+from app import db, i18n
 from main import AppController
 
 
@@ -29,17 +29,28 @@ def widget_stub(**overrides):
     return SimpleNamespace(**values)
 
 
+def panel_stub(**overrides):
+    values = {
+        "set_words": lambda _unlearned, _learned: None,
+        "set_current_word": lambda _word_id: None,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 def test_tick_records_formal_opportunity_with_new_scheduler_contract(tmp_path):
     """旧Selection APIを参照すると、起動直後の最初のtickで失敗する。"""
     conn = db.connect(tmp_path / "controller.db")
     word_id = db.add_word(conn, "ephemeral")
     shown = []
+    marked = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
     controller._current_word_id = None
     controller._previous_word_id = None
     controller._consecutive_new_opportunities = 0
+    controller._panel = panel_stub(set_current_word=marked.append)
     controller._meaning = meaning_stub()
     controller._widget = widget_stub(show_word=shown.append)
 
@@ -51,18 +62,21 @@ def test_tick_records_formal_opportunity_with_new_scheduler_contract(tmp_path):
     assert word.last_opportunity_at is not None
     assert controller._consecutive_new_opportunities == 1
     assert shown == ["ephemeral"]
+    assert marked == [word_id]
     conn.close()
 
 
 def test_tick_resets_new_streak_when_no_unlearned_words(tmp_path):
     conn = db.connect(tmp_path / "controller.db")
     placeholders = []
+    marked = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
     controller._current_word_id = 1
     controller._previous_word_id = 1
     controller._consecutive_new_opportunities = 2
+    controller._panel = panel_stub(set_current_word=marked.append)
     controller._meaning = meaning_stub()
     controller._widget = widget_stub(
         show_placeholder=lambda: placeholders.append(True),
@@ -72,6 +86,7 @@ def test_tick_resets_new_streak_when_no_unlearned_words(tmp_path):
 
     assert controller._consecutive_new_opportunities == 0
     assert placeholders == [True]
+    assert marked == [None]
     conn.close()
 
 
@@ -85,6 +100,7 @@ def test_adding_word_waits_for_the_regular_tick(tmp_path):
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
+    controller._s = i18n.strings("ja")
     controller._panel = panel
     controller._current_word_id = None
     controller._previous_word_id = None
@@ -100,35 +116,114 @@ def test_adding_word_waits_for_the_regular_tick(tmp_path):
     conn.close()
 
 
-def test_learning_current_word_clears_it_without_scheduling_another(tmp_path):
-    """学習済み操作から次語の履歴を5分未満で進める回帰を検出する。"""
+def test_learning_current_word_shows_next_word_immediately(tmp_path):
+    """表示中の語を学習済みにしたら、空白で 5 分待たせず次の語を出す（WR-9）。"""
     conn = db.connect(tmp_path / "controller.db")
     current_id = db.add_word(conn, "current")
     other_id = db.add_word(conn, "other")
-    placeholders = []
+    shown = []
+    timer_starts = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
     controller._current_word_id = current_id
     controller._previous_word_id = current_id
     controller._consecutive_new_opportunities = 0
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
+        set_words=lambda _unlearned, _learned: None,
+    )
+    controller._meaning = meaning_stub()
+    controller._widget = widget_stub(show_word=shown.append)
+    controller._timer = SimpleNamespace(start=lambda: timer_starts.append(True))
+
+    controller._on_learned_toggled(current_id, True)
+
+    assert controller._current_word_id == other_id
+    assert shown == ["other"]
+    assert timer_starts == [True]
+    conn.close()
+
+
+def test_learning_last_word_shows_placeholder(tmp_path):
+    conn = db.connect(tmp_path / "controller.db")
+    only_id = db.add_word(conn, "only")
+    placeholders = []
+
+    controller = AppController.__new__(AppController)
+    controller._conn = conn
+    controller._current_word_id = only_id
+    controller._previous_word_id = only_id
+    controller._consecutive_new_opportunities = 0
+    controller._panel = panel_stub(
         set_words=lambda _unlearned, _learned: None,
     )
     controller._meaning = meaning_stub()
     controller._widget = widget_stub(
         show_placeholder=lambda: placeholders.append(True),
     )
+    controller._timer = SimpleNamespace(start=lambda: None)
 
-    controller._on_learned_toggled(current_id, True)
+    controller._on_learned_toggled(only_id, True)
 
-    other = db.get_word(conn, other_id)
-    assert other is not None
-    assert other.opportunity_count == 0
-    assert other.last_opportunity_at is None
     assert controller._current_word_id is None
-    assert controller._previous_word_id is None
     assert placeholders == [True]
+    conn.close()
+
+
+def test_deleting_current_word_removes_it_and_shows_next_word(tmp_path):
+    conn = db.connect(tmp_path / "controller.db")
+    current_id = db.add_word(conn, "mistake")
+    other_id = db.add_word(conn, "other")
+    shown = []
+    left = []
+    timer_starts = []
+
+    controller = AppController.__new__(AppController)
+    controller._conn = conn
+    controller._current_word_id = current_id
+    controller._previous_word_id = current_id
+    controller._consecutive_new_opportunities = 0
+    controller._panel = panel_stub(
+        set_words=lambda _unlearned, _learned: None,
+        leave_edit_after_delete=lambda: left.append(True),
+    )
+    controller._meaning = meaning_stub()
+    controller._widget = widget_stub(show_word=shown.append)
+    controller._timer = SimpleNamespace(start=lambda: timer_starts.append(True))
+
+    controller._on_word_deleted(current_id)
+
+    assert db.get_word(conn, current_id) is None
+    assert controller._current_word_id == other_id
+    assert shown == ["other"]
+    assert timer_starts == [True]
+    assert left == [True]
+    conn.close()
+
+
+def test_deleting_other_word_keeps_current_display(tmp_path):
+    conn = db.connect(tmp_path / "controller.db")
+    current_id = db.add_word(conn, "current")
+    other_id = db.add_word(conn, "mistake")
+    placeholders = []
+
+    controller = AppController.__new__(AppController)
+    controller._conn = conn
+    controller._current_word_id = current_id
+    controller._panel = panel_stub(
+        set_words=lambda _unlearned, _learned: None,
+        leave_edit_after_delete=lambda: None,
+    )
+    controller._meaning = meaning_stub()
+    controller._widget = widget_stub(
+        show_placeholder=lambda: placeholders.append(True),
+    )
+
+    controller._on_word_deleted(other_id)
+
+    assert db.get_word(conn, other_id) is None
+    assert controller._current_word_id == current_id
+    assert placeholders == []
     conn.close()
 
 
@@ -143,6 +238,7 @@ def test_tick_records_filler_without_advancing_formal_history(tmp_path):
     controller._current_word_id = None
     controller._previous_word_id = None
     controller._consecutive_new_opportunities = 1
+    controller._panel = panel_stub()
     controller._meaning = meaning_stub()
     controller._widget = widget_stub()
 
@@ -193,6 +289,7 @@ def test_manual_next_records_action_advances_word_and_restarts_timer(tmp_path):
     controller._previous_word_id = first_id
     controller._consecutive_new_opportunities = 0
     controller._last_manual_next_display_token = None
+    controller._panel = panel_stub()
     controller._meaning = meaning_stub()
     controller._widget = widget_stub(show_word=shown.append)
     controller._timer = SimpleNamespace(start=lambda: timer_starts.append(True))
@@ -221,6 +318,7 @@ def test_manual_next_ignores_duplicate_event_from_same_display(tmp_path):
     controller._previous_word_id = first_id
     controller._consecutive_new_opportunities = 0
     controller._last_manual_next_display_token = None
+    controller._panel = panel_stub()
     controller._meaning = meaning_stub()
     controller._widget = widget_stub()
     controller._timer = SimpleNamespace(start=lambda: None)
@@ -250,16 +348,34 @@ def test_manual_next_does_nothing_when_only_one_unlearned_word_exists(tmp_path):
     conn.close()
 
 
-def test_left_click_opens_quick_entry_and_current_meaning(tmp_path):
+def test_left_click_shows_only_current_meaning(tmp_path):
     conn = db.connect(tmp_path / "controller.db")
     word_id = db.add_word(conn, "ephemeral", "儚い")
-    calls = []
     shown_notes = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
     controller._current_word_id = word_id
-    controller._panel = SimpleNamespace(
+    # パネルに触れたら AttributeError で落ちる
+    controller._panel = SimpleNamespace()
+    controller._widget = widget_stub(frameGeometry=lambda: "anchor")
+    controller._meaning = meaning_stub(
+        show_note=lambda note, anchor: shown_notes.append((note, anchor))
+    )
+
+    controller._show_meaning()
+
+    assert shown_notes == [("儚い", "anchor")]
+    conn.close()
+
+
+def test_open_panel_from_menu_starts_on_quick_entry(tmp_path):
+    conn = db.connect(tmp_path / "controller.db")
+    calls = []
+
+    controller = AppController.__new__(AppController)
+    controller._conn = conn
+    controller._panel = panel_stub(
         isVisible=lambda: False,
         set_words=lambda _unlearned, _learned: calls.append("refresh"),
         show=lambda: calls.append("show"),
@@ -267,27 +383,21 @@ def test_left_click_opens_quick_entry_and_current_meaning(tmp_path):
         raise_=lambda: calls.append("raise"),
         activateWindow=lambda: calls.append("activate"),
     )
-    controller._widget = widget_stub(frameGeometry=lambda: "anchor")
-    controller._meaning = meaning_stub(
-        show_note=lambda note, anchor: shown_notes.append((note, anchor))
-    )
+    controller._widget = widget_stub()
 
-    controller._open_quick_entry_and_meaning()
+    controller._open_panel()
 
     assert calls == ["refresh", "show", "quick", "raise", "activate"]
-    assert shown_notes == [("儚い", "anchor")]
     conn.close()
 
 
-def test_left_click_preserves_visible_panel_view(tmp_path):
+def test_open_panel_from_menu_preserves_visible_panel_view(tmp_path):
     conn = db.connect(tmp_path / "controller.db")
-    word_id = db.add_word(conn, "ephemeral", "儚い")
     quick_entries = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
-    controller._current_word_id = word_id
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
         isVisible=lambda: True,
         set_words=lambda _unlearned, _learned: None,
         show=lambda: None,
@@ -296,9 +406,8 @@ def test_left_click_preserves_visible_panel_view(tmp_path):
         activateWindow=lambda: None,
     )
     controller._widget = widget_stub()
-    controller._meaning = meaning_stub()
 
-    controller._open_quick_entry_and_meaning()
+    controller._open_panel()
 
     assert quick_entries == []
     conn.close()
@@ -312,7 +421,7 @@ def test_refresh_panel_updates_manual_next_availability(tmp_path):
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
         set_words=lambda _unlearned, _learned: None,
     )
     controller._widget = widget_stub(

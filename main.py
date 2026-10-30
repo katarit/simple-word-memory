@@ -10,10 +10,10 @@ import sys
 import sqlite3
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QLibraryInfo, QLocale, QTimer, QTranslator
 from PySide6.QtWidgets import QApplication
 
-from app import db, scheduler, theme
+from app import db, i18n, scheduler, theme
 from app.meaning_window import MeaningWindow
 from app.panel_window import PanelWindow
 from app.widget_window import WidgetWindow
@@ -26,9 +26,10 @@ SETTING_THEME = "theme"
 
 
 class AppController:
-    def __init__(self, app: QApplication, conn) -> None:
+    def __init__(self, app: QApplication, conn, strings: i18n.Strings) -> None:
         self._app = app
         self._conn = conn
+        self._s = strings
         self._current_word_id: int | None = None
         self._previous_word_id: int | None = None
         self._consecutive_new_opportunities = 0
@@ -39,12 +40,12 @@ class AppController:
         self._dark = saved_theme == "dark" if saved_theme else theme.is_dark(app)
         tokens = theme.tokens(self._dark)
 
-        self._widget = WidgetWindow(tokens)
-        self._panel = PanelWindow(tokens)
-        self._meaning = MeaningWindow(tokens)
+        self._widget = WidgetWindow(tokens, strings)
+        self._panel = PanelWindow(tokens, strings)
+        self._meaning = MeaningWindow(tokens, strings)
         self._panel.apply_theme(tokens, self._dark)
 
-        self._widget.clicked.connect(self._open_quick_entry_and_meaning)
+        self._widget.clicked.connect(self._show_meaning)
         self._widget.panel_requested.connect(self._open_panel)
         self._widget.next_requested.connect(self._on_next_requested)
         self._widget.drag_started.connect(self._meaning.hide)
@@ -52,6 +53,7 @@ class AppController:
         self._widget.quit_requested.connect(self._quit)
         self._panel.word_added.connect(self._on_word_added)
         self._panel.word_updated.connect(self._on_word_updated)
+        self._panel.word_deleted.connect(self._on_word_deleted)
         self._panel.learned_toggled.connect(self._on_learned_toggled)
         self._panel.word_opened.connect(self._on_word_opened)
         self._panel.theme_toggled.connect(self._toggle_theme)
@@ -84,6 +86,7 @@ class AppController:
             self._current_word_id = None
             self._previous_word_id = None
             self._consecutive_new_opportunities = 0
+            self._panel.set_current_word(None)
             self._widget.set_can_advance(False)
             self._widget.show_placeholder()
             return
@@ -101,17 +104,14 @@ class AppController:
 
         self._current_word_id = word.id
         self._previous_word_id = word.id
+        self._panel.set_current_word(word.id)
         self._widget.set_can_advance(len(unlearned) > 1)
         self._widget.show_word(word.text)
 
     # --- パネル操作 ---------------------------------------------------------
     def _open_panel(self) -> None:
-        self._refresh_panel()
-        self._panel.show()
-        self._panel.raise_()
-        self._panel.activateWindow()
-
-    def _open_quick_entry_and_meaning(self) -> None:
+        """右クリックの「管理パネルを開く」。思いついた語をすぐ登録できるよう、
+        閉じていたなら登録タブで開く。開いていれば今の画面を保つ。"""
         was_visible = self._panel.isVisible()
         self._refresh_panel()
         self._panel.show()
@@ -120,6 +120,8 @@ class AppController:
         self._panel.raise_()
         self._panel.activateWindow()
 
+    def _show_meaning(self) -> None:
+        """左クリック。登録語が増えると、クリックの目的は意味の確認が主になる。"""
         if self._current_word_id is None:
             self._meaning.hide()
             return
@@ -156,16 +158,16 @@ class AppController:
         try:
             db.add_word(self._conn, text, note)
         except db.DuplicateWordError:
-            self._panel.show_add_error(f"「{text}」は既に登録されています")
+            self._panel.show_add_error(self._s("word_duplicate", text=text))
             return
-        self._panel.clear_add_form(f"「{text}」を追加しました")
+        self._panel.clear_add_form(self._s("word_added", text=text))
         self._refresh_panel()
 
     def _on_word_updated(self, word_id: int, text: str, note: str) -> None:
         try:
             db.update_word(self._conn, word_id, text, note)
         except db.DuplicateWordError:
-            self._panel.show_edit_error(f"「{text}」は既に登録されています")
+            self._panel.show_edit_error(self._s("word_duplicate", text=text))
             return
         self._refresh_panel()
         self._panel.leave_edit_after_save()
@@ -173,15 +175,27 @@ class AppController:
             self._meaning.hide()
             self._widget.update_word_text(text)
 
+    def _on_word_deleted(self, word_id: int) -> None:
+        db.delete_word(self._conn, word_id)
+        self._refresh_panel()
+        self._panel.leave_edit_after_delete()
+        if word_id == self._current_word_id:
+            self._advance_past_current_word()
+
     def _on_learned_toggled(self, word_id: int, learned: bool) -> None:
         db.set_learned(self._conn, word_id, learned)
         self._refresh_panel()
         if learned and word_id == self._current_word_id:
-            self._meaning.hide()
-            self._current_word_id = None
-            self._previous_word_id = None
-            self._widget.set_can_advance(False)
-            self._widget.show_placeholder()
+            self._advance_past_current_word()
+
+    def _advance_past_current_word(self) -> None:
+        """表示中の語が出題対象から外れたとき。空白で待たせず次の語をすぐ出す。
+
+        手動の「次の単語」と同じく、そこから 5 分を数え直す。
+        """
+        self._current_word_id = None
+        self.tick()
+        self._timer.start()
 
     def _on_word_opened(self, word_id: int) -> None:
         word = db.get_word(self._conn, word_id)
@@ -226,8 +240,15 @@ class AppController:
 def main() -> int:
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    language = i18n.detect_language(QLocale.system().uiLanguages())
+    # 入力欄の右クリックメニューなど Qt 標準部品の文言。読み込まないと英語のまま出る。
+    qt_translator = QTranslator()
+    if language == "ja" and qt_translator.load(
+        QLocale(QLocale.Japanese), "qtbase", "_", QLibraryInfo.path(QLibraryInfo.TranslationsPath)
+    ):
+        app.installTranslator(qt_translator)
     conn = db.connect(DB_PATH)
-    controller = AppController(app, conn)
+    controller = AppController(app, conn, i18n.strings(language))
     controller.start()
     return app.exec()
 

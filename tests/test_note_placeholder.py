@@ -4,8 +4,11 @@ import pytest
 from PySide6.QtGui import QInputMethodEvent
 from PySide6.QtWidgets import QApplication
 
-from app import theme
+from app import i18n, theme
 from app.panel_window import PanelWindow
+
+
+JA = i18n.strings("ja")
 
 
 @pytest.fixture(scope="module")
@@ -20,7 +23,7 @@ def test_placeholder_hides_while_composing_and_returns_after_cancel(qapp):
     QPlainTextEdit は preedit を空文書として扱うため、素のままでは
     プレースホルダーが描かれ続けて入力文字と重なる。
     """
-    panel = PanelWindow(theme.tokens(False))
+    panel = PanelWindow(theme.tokens(False), JA)
     panel.show()
     qapp.processEvents()
 

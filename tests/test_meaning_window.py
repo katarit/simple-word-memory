@@ -4,8 +4,11 @@ import pytest
 from PySide6.QtCore import QPoint, QRect, QSize
 from PySide6.QtWidgets import QApplication
 
-from app import theme
+from app import i18n, theme
 from app.meaning_window import MeaningWindow, popup_position
+
+
+JA = i18n.strings("ja")
 
 
 @pytest.fixture(scope="module")
@@ -29,7 +32,7 @@ def test_popup_flips_above_widget_near_screen_bottom():
 
 
 def test_empty_note_is_shown_as_unregistered_content(qapp):
-    window = MeaningWindow(theme.tokens(False))
+    window = MeaningWindow(theme.tokens(False), JA)
 
     window.show_note("", QRect(100, 100, 240, 72))
 

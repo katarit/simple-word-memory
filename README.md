@@ -12,19 +12,24 @@ Windows のデスクトップに常時表示される小さなウィジェット
 
 Add a word you want to remember, and that is the whole workload. From there a small widget on your desktop shows one word at a time, spacing formal recall opportunities while you get on with something else.
 
-It shows the word only. Its job is to raise the number of times you meet a word; left-clicking opens the entry panel and shows the current word's content in a temporary card.
+It shows the word only. Its job is to raise the number of times you meet a word; left-clicking shows the current word's note in a temporary card.
 
 A word carries one free-form note. Because fields like part of speech or pronunciation belong to a particular language's grammar, keeping it to one subject and one note lets the same tool follow you across languages — and covers anything you want to keep resurfacing, not only words.
 
 ### Features
 
 - An always-on-top widget (240×72) showing a single word, rotating every 5 minutes
-- Left-click the widget to open the management panel on **Add** and show the current word's content in a separate temporary card. If the panel is already open, its current view is preserved. Click the content card to dismiss it
-- Each word carries one free-form "content" field (meaning, example sentence, notes — whatever helps you). It is intentionally not split into part of speech, reading, and so on, so that you can write whatever actually helps you remember
+- Left-click the widget to show the current word's note in a temporary card. Click the card to dismiss it
+- **Manage words** in the right-click menu opens the management panel on **Add**, ready for a new word. If the panel is already open, its current view is preserved
+- Each word carries one free-form note (meaning, example sentences — whatever helps you). It is intentionally not split into part of speech, reading, and so on, so that you can write whatever actually helps you remember
 - Click a word in a list to edit it. The date it was added is recorded automatically and shown read-only
+- The word currently on the widget is marked **On screen** in the list, so it is easy to find among similar words
+- **Delete** a word from its edit view, for example one you added by mistake. You are asked to confirm, and the deletion cannot be undone
 - Checking a word marks it as learned and removes it from the rotation. **Unchecking never discards its learning history**
+- If the word on the widget is marked as learned or deleted, the next word appears right away instead of leaving the widget empty
 - Light and dark themes, switchable from the button in the panel header. The first launch follows the OS setting; after that your choice is remembered
-- **Right-click the widget** for **Next word / Open management panel / Quit**. “Next word” is disabled when there is no alternative
+- **Right-click the widget** for **Next word / Manage words / Exit**. “Next word” is disabled when there is no alternative
+- The interface is in English, or in Japanese when Windows' display language is Japanese
 
 ### How words are chosen
 
@@ -42,6 +47,7 @@ Formal recall opportunities use these minimum intervals:
 - Opening the management panel, viewing details, or editing a word is scheduling-neutral. These actions are not treated as evidence that the word was remembered or forgotten.
 - Choosing **Next word** is treated as a weak product-level familiarity signal for that specific display opportunity. It extends only the next formal interval by one step, never beyond three days. Repeated actions before the next formal opportunity are recorded for analysis but do not stack or re-anchor the bonus; the next formal opportunity consumes it.
 - Words marked as learned are excluded from rotation. Unchecking them restores them with their previous opportunity history intact.
+- When the word on screen is marked as learned or deleted, the next word is selected immediately, as with **Next word** but without its bonus, and the five-minute count restarts from there.
 
 The shape of the schedule—spaced rather than massed presentation, initially expanding intervals, and no unlimited expansion—is informed by research on distributed practice and retrieval spacing:
 
@@ -73,7 +79,7 @@ Double-click `start-words-reminder.cmd`, or run:
 
 The launcher creates a `.venv` and installs dependencies on first run if one does not exist yet.
 
-Drag the widget to move it; its position is restored on the next launch. Left-click opens quick entry and the temporary content card; **right-click opens “Next word / Open management panel / Quit”**. Data is stored locally in `data/words.db` (SQLite). Nothing is sent anywhere — the application makes no network requests.
+Drag the widget to move it; its position is restored on the next launch. Left-click shows the note card; **right-click opens “Next word / Manage words / Exit”**. Data is stored locally in `data/words.db` (SQLite). Nothing is sent anywhere — the application makes no network requests.
 
 ### Tests
 
@@ -92,10 +98,11 @@ Tests need one extra dependency, kept separate so that simply running the app do
 | `app/db.py` | SQLite persistence (words, settings) |
 | `app/scheduler.py` | Selection logic and tuning constants; depends on neither UI nor DB |
 | `app/widget_window.py` | The always-on-top word widget |
-| `app/meaning_window.py` | Temporary content card shown beside the widget |
+| `app/meaning_window.py` | Temporary note card shown beside the widget |
 | `app/panel_window.py` | Management panel (add / lists / edit) |
 | `app/theme.py` | Color and dimension tokens, and Qt stylesheets |
-| `tests/` | Tests for persistence and selection logic (pytest) |
+| `app/i18n.py` | On-screen text in English and Japanese, and display-language detection |
+| `tests/` | Tests for persistence, selection logic, windows, and translations (pytest) |
 
 ### Known limits and possible next steps
 
@@ -103,6 +110,7 @@ Tests need one extra dependency, kept separate so that simply running the app do
 - The opportunity intervals are initial product judgments and are expected to be tuned through real use
 - Words marked as learned are not shown unless the user unchecks them
 - No standalone executable or Windows startup registration yet
+- The interface language follows Windows' display language and cannot be switched inside the app. Only English and Japanese are available
 
 ---
 
@@ -112,19 +120,24 @@ Tests need one extra dependency, kept separate so that simply running the app do
 
 覚えたいと思った単語を簡単に登録すると、あとは間隔を空けた想起機会として、デスクトップのウィジェットにシンプルに表示し続けます。「復習しよう」と決める手間なく、別の作業をしている間に単語に触れられます。
 
-表示するのは単語だけです。単語に出会う回数を増やすことが役割で、左クリックすると登録画面と同時に現在の単語の内容を一時カードで確認できます。
+表示するのは単語だけです。単語に出会う回数を増やすことが役割で、左クリックすると現在の単語の内容を一時カードで確認できます。
 
 単語が持つのは自由記述のメモ1つだけです。品詞や発音といった項目は特定言語の文法に属するため、「対象1つ＋メモ1つ」に留めることで、学習する言語が変わっても同じ形のまま使えます。単語に限らず、覚えておきたいこと全般にも応用できます。
 
 ### 機能
 
 - 常に最前面の小さなウィジェット（240×72）に単語を1語だけ表示し、5分ごとに切り替える
-- ウィジェットを左クリックすると管理パネルの**登録**画面と、現在の単語の内容を示す別の一時カードが同時に開く。パネルが既に開いている場合は現在の画面を維持し、内容カードは左クリックで閉じられる
+- ウィジェットを左クリックすると、現在の単語の内容を示す一時カードが開く。カードは左クリックで閉じられる
+- 右クリックメニューの**管理パネルを開く**では、管理パネルが**登録**画面で開き、すぐ単語を入力できる。パネルが既に開いている場合は現在の画面を維持する
 - 単語には自由記述の「内容」を1つだけ持たせる（意味・例文・メモなど何でも）。品詞や読みに分割しないのは、覚えるために本当に役立つことを自由に書けるようにするため
 - リストの単語をクリックすると編集できる。登録日は自動で記録され、読み取り専用で表示される
+- ウィジェットに表示中の単語は、リストで**表示中**と示される。似た単語が並んでいても見分けられる
+- 間違えて登録した単語などは、編集画面から**削除**できる。確認が出て、削除すると元に戻せない
 - チェックすると学習済みになり表示対象から外れる。**チェックを外しても学習の経緯は破棄されない**
+- ウィジェットに表示中の単語を学習済みにしたり削除したりすると、空白にならず次の単語がすぐ表示される
 - ライト／ダークはパネルのヘッダーのボタンで切り替えられる。初回起動時は OS の設定に従い、以降は選んだ状態を記憶する
 - **ウィジェットを右クリック**すると、**次の単語／管理パネルを開く／終了**のメニューが出る。代わりの未学習語がない場合、「次の単語」は無効になる
+- 画面の言語は、Windows の表示言語が日本語なら日本語、それ以外は英語になる
 
 ### 出題の仕組み
 
@@ -142,6 +155,7 @@ Tests need one extra dependency, kept separate so that simply running the app do
 - 管理パネルを開く、内容を見る、編集する、といった操作はスケジューリングに影響しません。覚えていた・忘れていたという証拠には利用しません
 - **「次の単語」**は、その表示機会に対する弱い習熟シグナルというプロダクト仮説として扱います。次の正式間隔だけを1段延長し、上限は3日です。次の正式機会までに繰り返した操作は分析用に記録しますが、ボーナスを重ねたり候補時刻を押し直したりはしません。次の正式機会でボーナスを消費します
 - 学習済み語は表示対象外です。チェックを外した場合は、以前の想起機会履歴を保持したまま復帰します
+- 表示中の語を学習済みにしたり削除したりした場合は、**「次の単語」**と同じくその場で次の語を選び、そこから5分を数え直します（「次の単語」のボーナスは付きません）
 
 集中提示を避けて間隔を空けること、初期に間隔を広げること、無制限に拡張しないことは、分散学習と検索間隔に関する次の研究を参考にしています。
 
@@ -173,7 +187,7 @@ python -m venv .venv
 
 `.venv` がまだない場合、起動スクリプトが作成して依存関係をインストールします。
 
-ウィジェットはドラッグで移動でき、位置は次回起動時に復元されます。左クリックで登録画面と内容カードが開き、**右クリックで「次の単語／管理パネルを開く／終了」のメニュー**が出ます。データはローカルの `data/words.db`（SQLite）に保存されます。外部への送信は一切なく、ネットワーク通信は行いません。
+ウィジェットはドラッグで移動でき、位置は次回起動時に復元されます。左クリックで内容カードが開き、**右クリックで「次の単語／管理パネルを開く／終了」のメニュー**が出ます。データはローカルの `data/words.db`（SQLite）に保存されます。外部への送信は一切なく、ネットワーク通信は行いません。
 
 ### テスト
 
@@ -194,6 +208,7 @@ python -m venv .venv
 - 想起機会の間隔は初期判断値であり、実運用しながらの調整を前提としています
 - 学習済みにした単語は、ユーザーがチェックを外すまで表示されません
 - 単体実行ファイル化と Windows 自動起動への登録は未対応です
+- 画面の言語は Windows の表示言語に従い、アプリ内では切り替えられません。対応しているのは英語と日本語だけです
 
 ---
 
