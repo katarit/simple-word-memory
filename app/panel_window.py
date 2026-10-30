@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -28,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from app import __version__, theme
 from app.db import Word
+from app.i18n import Strings
 
 TAB_ADD = 0
 TAB_UNLEARNED = 1
@@ -39,12 +38,6 @@ def _repolish(widget: QWidget) -> None:
     """objectName を変えたあとに QSS を再適用する。"""
     widget.style().unpolish(widget)
     widget.style().polish(widget)
-
-
-def format_date(value: datetime | None) -> str:
-    if value is None:
-        return ""
-    return value.astimezone().strftime("%Y/%m/%d")
 
 
 class ElidedLabel(QLabel):
@@ -102,7 +95,7 @@ class WordRow(QFrame):
     toggled = Signal(int, bool)
     opened = Signal(int)
 
-    def __init__(self, word: Word, parent: QWidget | None = None) -> None:
+    def __init__(self, word: Word, strings: Strings, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("row")
         self.setAttribute(Qt.WA_StyledBackground, True)
@@ -134,13 +127,13 @@ class WordRow(QFrame):
         word_label.setObjectName("rowWordLearned" if word.learned else "rowWord")
         top_line.addWidget(word_label, 1)
 
-        date_label = QLabel(format_date(word.added_at))
+        date_label = QLabel(strings.date(word.added_at))
         date_label.setObjectName("rowDate")
         top_line.addWidget(date_label, 0, Qt.AlignRight | Qt.AlignBaseline)
 
         col_layout.addLayout(top_line)
 
-        note_label = ElidedLabel(word.note.replace("\n", " ") if word.note else "（内容未登録）")
+        note_label = ElidedLabel(word.note.replace("\n", " ") if word.note else strings("row_no_note"))
         note_label.setObjectName("rowNote")
         col_layout.addWidget(note_label)
 
@@ -161,14 +154,15 @@ class PanelWindow(QWidget):
     word_opened = Signal(int)
     theme_toggled = Signal()
 
-    def __init__(self, tokens: dict[str, str], parent: QWidget | None = None) -> None:
+    def __init__(self, tokens: dict[str, str], strings: Strings, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._s = strings
         self._editing_id: int | None = None
         self._return_tab = TAB_UNLEARNED
         self._suppress_toggle = False
 
         # バージョンは OS のタイトルバーに出す（アプリ内ヘッダーには置かない）。
-        self.setWindowTitle(f"単語リマインダー  ver. {__version__}")
+        self.setWindowTitle(strings("window_title", version=__version__))
         self.setFixedSize(theme.PANEL_WIDTH, theme.PANEL_HEIGHT)
         self.setObjectName("panelRoot")
         self.setStyleSheet(theme.panel_qss(tokens))
@@ -187,7 +181,7 @@ class PanelWindow(QWidget):
         header.setFixedHeight(theme.PANEL_HEADER_HEIGHT)
         layout = QHBoxLayout(header)
         layout.setContentsMargins(theme.PANEL_CONTENT_PADDING, 0, theme.PANEL_CONTENT_PADDING, 0)
-        title = QLabel("単語リマインダー")
+        title = QLabel(self._s("app_name"))
         title.setObjectName("panelTitle")
         layout.addWidget(title)
         layout.addStretch(1)
@@ -214,8 +208,8 @@ class PanelWindow(QWidget):
         self._tab_labels: list[QLabel] = []
         self._tab_badges: list[QLabel | None] = []
 
-        for index, (text, has_badge) in enumerate(
-            (("登録", False), ("未学習", True), ("学習済み", True))
+        for index, (key, has_badge) in enumerate(
+            (("tab_add", False), ("tab_unlearned", True), ("tab_learned", True))
         ):
             button = QPushButton()
             button.setObjectName("tab")
@@ -233,7 +227,7 @@ class PanelWindow(QWidget):
             inner.setSpacing(6)
             inner.addStretch(1)
 
-            label = QLabel(text)
+            label = QLabel(self._s(key))
             label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
             inner.addWidget(label)
             self._tab_labels.append(label)
@@ -288,19 +282,19 @@ class PanelWindow(QWidget):
     def _build_add_view(self) -> QWidget:
         page, layout = self._padded()
 
-        layout.addWidget(self._field_label("単語"))
+        layout.addWidget(self._field_label(self._s("field_word")))
         layout.addSpacing(8)
         self._add_text = QLineEdit()
-        self._add_text.setPlaceholderText("単語を入力")
+        self._add_text.setPlaceholderText(self._s("word_placeholder"))
         self._add_text.setFixedHeight(40)
         self._add_text.returnPressed.connect(self._submit_add)
         layout.addWidget(self._add_text)
 
         layout.addSpacing(20)
-        layout.addWidget(self._field_label("内容（任意）"))
+        layout.addWidget(self._field_label(self._s("field_note")))
         layout.addSpacing(8)
         self._add_note = NoteEdit()
-        self._add_note.setPlaceholderText("意味・例文・メモなど自由に記入")
+        self._add_note.setPlaceholderText(self._s("note_placeholder"))
         layout.addWidget(self._add_note, 1)
 
         layout.addSpacing(8)
@@ -311,7 +305,7 @@ class PanelWindow(QWidget):
 
         button_row = QHBoxLayout()
         button_row.addStretch(1)
-        add_button = QPushButton("追加")
+        add_button = QPushButton(self._s("add"))
         add_button.setObjectName("primary")
         add_button.setFixedHeight(40)
         add_button.setCursor(Qt.PointingHandCursor)
@@ -347,7 +341,7 @@ class PanelWindow(QWidget):
     def _build_edit_view(self) -> QWidget:
         page, layout = self._padded()
 
-        back = QPushButton("← 戻る")
+        back = QPushButton(self._s("back_link"))
         back.setObjectName("back")
         back.setCursor(Qt.PointingHandCursor)
         back.clicked.connect(self._leave_edit)
@@ -359,14 +353,14 @@ class PanelWindow(QWidget):
         layout.addWidget(self._edit_meta)
 
         layout.addSpacing(16)
-        layout.addWidget(self._field_label("単語"))
+        layout.addWidget(self._field_label(self._s("field_word")))
         layout.addSpacing(8)
         self._edit_text = QLineEdit()
         self._edit_text.setFixedHeight(40)
         layout.addWidget(self._edit_text)
 
         layout.addSpacing(20)
-        layout.addWidget(self._field_label("内容（任意）"))
+        layout.addWidget(self._field_label(self._s("field_note")))
         layout.addSpacing(8)
         self._edit_note = NoteEdit()
         layout.addWidget(self._edit_note, 1)
@@ -379,20 +373,20 @@ class PanelWindow(QWidget):
 
         button_row = QHBoxLayout()
         # 取り消せない操作なので、保存とは反対の端に離して置く。
-        delete = QPushButton("削除")
+        delete = QPushButton(self._s("delete"))
         delete.setObjectName("danger")
         delete.setFixedHeight(40)
         delete.setCursor(Qt.PointingHandCursor)
         delete.clicked.connect(self._submit_delete)
         button_row.addWidget(delete)
         button_row.addStretch(1)
-        cancel = QPushButton("戻る")
+        cancel = QPushButton(self._s("back"))
         cancel.setObjectName("ghost")
         cancel.setFixedHeight(40)
         cancel.setCursor(Qt.PointingHandCursor)
         cancel.clicked.connect(self._leave_edit)
         button_row.addWidget(cancel)
-        save = QPushButton("保存")
+        save = QPushButton(self._s("save"))
         save.setObjectName("primary")
         save.setFixedHeight(40)
         save.setCursor(Qt.PointingHandCursor)
@@ -419,8 +413,8 @@ class PanelWindow(QWidget):
 
     def set_words(self, unlearned: list[Word], learned: list[Word]) -> None:
         """リストを描き直す。QWidget.render() と衝突するため render とは名付けない。"""
-        self._fill_list(self._unlearned_layout, unlearned, "未学習の単語はありません")
-        self._fill_list(self._learned_layout, learned, "学習済みの単語はありません")
+        self._fill_list(self._unlearned_layout, unlearned, self._s("empty_unlearned"))
+        self._fill_list(self._learned_layout, learned, self._s("empty_learned"))
         self._tab_badges[TAB_UNLEARNED].setText(str(len(unlearned)))
         self._tab_badges[TAB_LEARNED].setText(str(len(learned)))
 
@@ -438,7 +432,7 @@ class PanelWindow(QWidget):
             layout.addWidget(empty)
         else:
             for word in words:
-                row = WordRow(word)
+                row = WordRow(word, self._s)
                 row.toggled.connect(self._on_row_toggled)
                 row.opened.connect(self.open_word)
                 layout.addWidget(row)
@@ -459,7 +453,7 @@ class PanelWindow(QWidget):
 
     def show_edit(self, word: Word) -> None:
         self._editing_id = word.id
-        self._edit_meta.setText(f"登録日: {format_date(word.added_at)}")
+        self._edit_meta.setText(self._s("added_on", date=self._s.date(word.added_at)))
         self._edit_text.setText(word.text)
         self._edit_note.setPlainText(word.note)
         self._edit_hint.setText("")
@@ -481,7 +475,7 @@ class PanelWindow(QWidget):
     def _submit_add(self) -> None:
         text = self._add_text.text().strip()
         if not text:
-            self._set_hint(self._add_hint, "単語を入力してください", error=True)
+            self._set_hint(self._add_hint, self._s("word_required"), error=True)
             return
         self.word_added.emit(text, self._add_note.toPlainText())
 
@@ -490,7 +484,7 @@ class PanelWindow(QWidget):
             return
         text = self._edit_text.text().strip()
         if not text:
-            self._set_hint(self._edit_hint, "単語を入力してください", error=True)
+            self._set_hint(self._edit_hint, self._s("word_required"), error=True)
             return
         self.word_updated.emit(self._editing_id, text, self._edit_note.toPlainText())
 
@@ -503,10 +497,10 @@ class PanelWindow(QWidget):
     def _confirm_delete(self, text: str) -> bool:
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Warning)
-        box.setWindowTitle("単語の削除")
-        box.setText(f"「{text}」を削除しますか？\n削除すると元に戻せません。")
-        delete = box.addButton("削除", QMessageBox.DestructiveRole)
-        cancel = box.addButton("キャンセル", QMessageBox.RejectRole)
+        box.setWindowTitle(self._s("delete_title"))
+        box.setText(self._s("delete_question", text=text))
+        delete = box.addButton(self._s("delete"), QMessageBox.DestructiveRole)
+        cancel = box.addButton(self._s("cancel"), QMessageBox.RejectRole)
         # 誤って Enter で消さないよう、既定は安全側に置く。
         box.setDefaultButton(cancel)
         box.setEscapeButton(cancel)

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 from PySide6.QtWidgets import QApplication, QSizePolicy
 
-from datetime import datetime, timezone
-
-from app import theme
+from app import i18n, theme
 from app.db import Word
 from app.panel_window import TAB_ADD, TAB_LEARNED, PanelWindow
+
+
+JA = i18n.strings("ja")
 
 
 @pytest.fixture(scope="module")
@@ -18,7 +21,7 @@ def qapp():
 
 @pytest.mark.parametrize("dark", [False, True])
 def test_content_editors_are_not_fixed_to_88_pixels(qapp, dark):
-    panel = PanelWindow(theme.tokens(dark))
+    panel = PanelWindow(theme.tokens(dark), JA)
     panel.apply_theme(theme.tokens(dark), dark)
     panel.show()
     qapp.processEvents()
@@ -40,7 +43,7 @@ def test_content_editors_are_not_fixed_to_88_pixels(qapp, dark):
 
 
 def test_quick_entry_opens_add_tab_and_focuses_word_field(qapp):
-    panel = PanelWindow(theme.tokens(False))
+    panel = PanelWindow(theme.tokens(False), JA)
     panel.show()
     panel.show_tab(TAB_LEARNED)
 
@@ -54,7 +57,7 @@ def test_quick_entry_opens_add_tab_and_focuses_word_field(qapp):
 
 @pytest.mark.parametrize("confirmed", [True, False])
 def test_delete_emits_only_after_confirmation(qapp, monkeypatch, confirmed):
-    panel = PanelWindow(theme.tokens(False))
+    panel = PanelWindow(theme.tokens(False), JA)
     word = Word(
         id=5,
         text="mistake",

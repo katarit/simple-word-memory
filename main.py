@@ -10,10 +10,10 @@ import sys
 import sqlite3
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QLibraryInfo, QLocale, QTimer, QTranslator
 from PySide6.QtWidgets import QApplication
 
-from app import db, scheduler, theme
+from app import db, i18n, scheduler, theme
 from app.meaning_window import MeaningWindow
 from app.panel_window import PanelWindow
 from app.widget_window import WidgetWindow
@@ -26,9 +26,10 @@ SETTING_THEME = "theme"
 
 
 class AppController:
-    def __init__(self, app: QApplication, conn) -> None:
+    def __init__(self, app: QApplication, conn, strings: i18n.Strings) -> None:
         self._app = app
         self._conn = conn
+        self._s = strings
         self._current_word_id: int | None = None
         self._previous_word_id: int | None = None
         self._consecutive_new_opportunities = 0
@@ -39,9 +40,9 @@ class AppController:
         self._dark = saved_theme == "dark" if saved_theme else theme.is_dark(app)
         tokens = theme.tokens(self._dark)
 
-        self._widget = WidgetWindow(tokens)
-        self._panel = PanelWindow(tokens)
-        self._meaning = MeaningWindow(tokens)
+        self._widget = WidgetWindow(tokens, strings)
+        self._panel = PanelWindow(tokens, strings)
+        self._meaning = MeaningWindow(tokens, strings)
         self._panel.apply_theme(tokens, self._dark)
 
         self._widget.clicked.connect(self._open_quick_entry_and_meaning)
@@ -157,16 +158,16 @@ class AppController:
         try:
             db.add_word(self._conn, text, note)
         except db.DuplicateWordError:
-            self._panel.show_add_error(f"「{text}」は既に登録されています")
+            self._panel.show_add_error(self._s("word_duplicate", text=text))
             return
-        self._panel.clear_add_form(f"「{text}」を追加しました")
+        self._panel.clear_add_form(self._s("word_added", text=text))
         self._refresh_panel()
 
     def _on_word_updated(self, word_id: int, text: str, note: str) -> None:
         try:
             db.update_word(self._conn, word_id, text, note)
         except db.DuplicateWordError:
-            self._panel.show_edit_error(f"「{text}」は既に登録されています")
+            self._panel.show_edit_error(self._s("word_duplicate", text=text))
             return
         self._refresh_panel()
         self._panel.leave_edit_after_save()
@@ -179,21 +180,22 @@ class AppController:
         self._refresh_panel()
         self._panel.leave_edit_after_delete()
         if word_id == self._current_word_id:
-            self._clear_current_word()
+            self._advance_past_current_word()
 
     def _on_learned_toggled(self, word_id: int, learned: bool) -> None:
         db.set_learned(self._conn, word_id, learned)
         self._refresh_panel()
         if learned and word_id == self._current_word_id:
-            self._clear_current_word()
+            self._advance_past_current_word()
 
-    def _clear_current_word(self) -> None:
-        """表示中の語が出題対象から外れたとき。次の語は通常のティックまで待つ。"""
-        self._meaning.hide()
+    def _advance_past_current_word(self) -> None:
+        """表示中の語が出題対象から外れたとき。空白で待たせず次の語をすぐ出す。
+
+        手動の「次の単語」と同じく、そこから 5 分を数え直す。
+        """
         self._current_word_id = None
-        self._previous_word_id = None
-        self._widget.set_can_advance(False)
-        self._widget.show_placeholder()
+        self.tick()
+        self._timer.start()
 
     def _on_word_opened(self, word_id: int) -> None:
         word = db.get_word(self._conn, word_id)
@@ -238,8 +240,15 @@ class AppController:
 def main() -> int:
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    language = i18n.detect_language(QLocale.system().uiLanguages())
+    # 入力欄の右クリックメニューなど Qt 標準部品の文言。読み込まないと英語のまま出る。
+    qt_translator = QTranslator()
+    if language == "ja" and qt_translator.load(
+        QLocale(QLocale.Japanese), "qtbase", "_", QLibraryInfo.path(QLibraryInfo.TranslationsPath)
+    ):
+        app.installTranslator(qt_translator)
     conn = db.connect(DB_PATH)
-    controller = AppController(app, conn)
+    controller = AppController(app, conn, i18n.strings(language))
     controller.start()
     return app.exec()
 

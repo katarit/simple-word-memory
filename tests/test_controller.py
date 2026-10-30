@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from app import db
+from app import db, i18n
 from main import AppController
 
 
@@ -85,6 +85,7 @@ def test_adding_word_waits_for_the_regular_tick(tmp_path):
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
+    controller._s = i18n.strings("ja")
     controller._panel = panel
     controller._current_word_id = None
     controller._previous_word_id = None
@@ -100,12 +101,13 @@ def test_adding_word_waits_for_the_regular_tick(tmp_path):
     conn.close()
 
 
-def test_learning_current_word_clears_it_without_scheduling_another(tmp_path):
-    """学習済み操作から次語の履歴を5分未満で進める回帰を検出する。"""
+def test_learning_current_word_shows_next_word_immediately(tmp_path):
+    """表示中の語を学習済みにしたら、空白で 5 分待たせず次の語を出す（WR-9）。"""
     conn = db.connect(tmp_path / "controller.db")
     current_id = db.add_word(conn, "current")
     other_id = db.add_word(conn, "other")
-    placeholders = []
+    shown = []
+    timer_starts = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
@@ -116,28 +118,50 @@ def test_learning_current_word_clears_it_without_scheduling_another(tmp_path):
         set_words=lambda _unlearned, _learned: None,
     )
     controller._meaning = meaning_stub()
-    controller._widget = widget_stub(
-        show_placeholder=lambda: placeholders.append(True),
-    )
+    controller._widget = widget_stub(show_word=shown.append)
+    controller._timer = SimpleNamespace(start=lambda: timer_starts.append(True))
 
     controller._on_learned_toggled(current_id, True)
 
-    other = db.get_word(conn, other_id)
-    assert other is not None
-    assert other.opportunity_count == 0
-    assert other.last_opportunity_at is None
+    assert controller._current_word_id == other_id
+    assert shown == ["other"]
+    assert timer_starts == [True]
+    conn.close()
+
+
+def test_learning_last_word_shows_placeholder(tmp_path):
+    conn = db.connect(tmp_path / "controller.db")
+    only_id = db.add_word(conn, "only")
+    placeholders = []
+
+    controller = AppController.__new__(AppController)
+    controller._conn = conn
+    controller._current_word_id = only_id
+    controller._previous_word_id = only_id
+    controller._consecutive_new_opportunities = 0
+    controller._panel = SimpleNamespace(
+        set_words=lambda _unlearned, _learned: None,
+    )
+    controller._meaning = meaning_stub()
+    controller._widget = widget_stub(
+        show_placeholder=lambda: placeholders.append(True),
+    )
+    controller._timer = SimpleNamespace(start=lambda: None)
+
+    controller._on_learned_toggled(only_id, True)
+
     assert controller._current_word_id is None
-    assert controller._previous_word_id is None
     assert placeholders == [True]
     conn.close()
 
 
-def test_deleting_current_word_removes_it_and_clears_widget(tmp_path):
+def test_deleting_current_word_removes_it_and_shows_next_word(tmp_path):
     conn = db.connect(tmp_path / "controller.db")
     current_id = db.add_word(conn, "mistake")
     other_id = db.add_word(conn, "other")
-    placeholders = []
+    shown = []
     left = []
+    timer_starts = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
@@ -149,17 +173,15 @@ def test_deleting_current_word_removes_it_and_clears_widget(tmp_path):
         leave_edit_after_delete=lambda: left.append(True),
     )
     controller._meaning = meaning_stub()
-    controller._widget = widget_stub(
-        show_placeholder=lambda: placeholders.append(True),
-    )
+    controller._widget = widget_stub(show_word=shown.append)
+    controller._timer = SimpleNamespace(start=lambda: timer_starts.append(True))
 
     controller._on_word_deleted(current_id)
 
     assert db.get_word(conn, current_id) is None
-    assert db.get_word(conn, other_id) is not None
-    assert controller._current_word_id is None
-    assert controller._previous_word_id is None
-    assert placeholders == [True]
+    assert controller._current_word_id == other_id
+    assert shown == ["other"]
+    assert timer_starts == [True]
     assert left == [True]
     conn.close()
 
