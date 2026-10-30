@@ -9,6 +9,7 @@ from main import AppController
 def meaning_stub(**overrides):
     values = {
         "hide": lambda: None,
+        "isVisible": lambda: False,
         "show_note": lambda _note, _anchor: None,
         "close": lambda: None,
         "apply_theme": lambda _tokens: None,
@@ -366,6 +367,29 @@ def test_left_click_shows_only_current_meaning(tmp_path):
     controller._show_meaning()
 
     assert shown_notes == [("儚い", "anchor")]
+    conn.close()
+
+
+def test_left_click_again_closes_open_meaning(tmp_path):
+    conn = db.connect(tmp_path / "controller.db")
+    word_id = db.add_word(conn, "ephemeral", "儚い")
+    hidden = []
+    shown_notes = []
+
+    controller = AppController.__new__(AppController)
+    controller._conn = conn
+    controller._current_word_id = word_id
+    controller._widget = widget_stub(frameGeometry=lambda: "anchor")
+    controller._meaning = meaning_stub(
+        isVisible=lambda: True,
+        hide=lambda: hidden.append(True),
+        show_note=lambda note, anchor: shown_notes.append((note, anchor)),
+    )
+
+    controller._show_meaning()
+
+    assert hidden == [True]
+    assert shown_notes == []
     conn.close()
 
 

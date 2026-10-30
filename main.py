@@ -121,7 +121,13 @@ class AppController:
         self._panel.activateWindow()
 
     def _show_meaning(self) -> None:
-        """左クリック。登録語が増えると、クリックの目的は意味の確認が主になる。"""
+        """左クリック。登録語が増えると、クリックの目的は意味の確認が主になる。
+
+        開いた場所でもう一度押して閉じられるよう、開いていれば閉じる。
+        """
+        if self._meaning.isVisible():
+            self._meaning.hide()
+            return
         if self._current_word_id is None:
             self._meaning.hide()
             return

@@ -19,7 +19,7 @@ A word carries one free-form note. Because fields like part of speech or pronunc
 ### Features
 
 - An always-on-top widget (240×72) showing a single word, rotating every 5 minutes
-- Left-click the widget to show the current word's note in a temporary card. Click the card to dismiss it
+- Left-click the widget to show the current word's note in a temporary card. Left-click the widget again, or click the card, to dismiss it
 - **Manage words** in the right-click menu opens the management panel on **Add**, ready for a new word. If the panel is already open, its current view is preserved
 - Each word carries one free-form note (meaning, example sentences — whatever helps you). It is intentionally not split into part of speech, reading, and so on, so that you can write whatever actually helps you remember
 - Click a word in a list to edit it. The date it was added is recorded automatically and shown read-only
@@ -127,7 +127,7 @@ Tests need one extra dependency, kept separate so that simply running the app do
 ### 機能
 
 - 常に最前面の小さなウィジェット（240×72）に単語を1語だけ表示し、5分ごとに切り替える
-- ウィジェットを左クリックすると、現在の単語の内容を示す一時カードが開く。カードは左クリックで閉じられる
+- ウィジェットを左クリックすると、現在の単語の内容を示す一時カードが開く。もう一度ウィジェットを左クリックするか、カードをクリックすると閉じる
 - 右クリックメニューの**管理パネルを開く**では、管理パネルが**登録**画面で開き、すぐ単語を入力できる。パネルが既に開いている場合は現在の画面を維持する
 - 単語には自由記述の「内容」を1つだけ持たせる（意味・例文・メモなど何でも）。品詞や読みに分割しないのは、覚えるために本当に役立つことを自由に書けるようにするため
 - リストの単語をクリックすると編集できる。登録日は自動で記録され、読み取り専用で表示される
