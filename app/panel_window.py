@@ -1,7 +1,7 @@
 """管理パネル（登録／未学習／学習済み ＋ 編集ビュー）。
 
 リスト行は 1 行目に単語（左）と登録日（右）、2 行目に内容プレビュー。
-チェックボックスは学習済みの切り替えだけを担う。
+チェックボックスは学習済みの切り替えだけを担う。削除は編集ビューから行う。
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
@@ -155,6 +156,7 @@ class PanelWindow(QWidget):
 
     word_added = Signal(str, str)
     word_updated = Signal(int, str, str)
+    word_deleted = Signal(int)
     learned_toggled = Signal(int, bool)
     word_opened = Signal(int)
     theme_toggled = Signal()
@@ -376,6 +378,13 @@ class PanelWindow(QWidget):
         layout.addWidget(self._edit_hint)
 
         button_row = QHBoxLayout()
+        # 取り消せない操作なので、保存とは反対の端に離して置く。
+        delete = QPushButton("削除")
+        delete.setObjectName("danger")
+        delete.setFixedHeight(40)
+        delete.setCursor(Qt.PointingHandCursor)
+        delete.clicked.connect(self._submit_delete)
+        button_row.addWidget(delete)
         button_row.addStretch(1)
         cancel = QPushButton("戻る")
         cancel.setObjectName("ghost")
@@ -485,6 +494,25 @@ class PanelWindow(QWidget):
             return
         self.word_updated.emit(self._editing_id, text, self._edit_note.toPlainText())
 
+    def _submit_delete(self) -> None:
+        if self._editing_id is None:
+            return
+        if self._confirm_delete(self._edit_text.text().strip()):
+            self.word_deleted.emit(self._editing_id)
+
+    def _confirm_delete(self, text: str) -> bool:
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("単語の削除")
+        box.setText(f"「{text}」を削除しますか？\n削除すると元に戻せません。")
+        delete = box.addButton("削除", QMessageBox.DestructiveRole)
+        cancel = box.addButton("キャンセル", QMessageBox.RejectRole)
+        # 誤って Enter で消さないよう、既定は安全側に置く。
+        box.setDefaultButton(cancel)
+        box.setEscapeButton(cancel)
+        box.exec()
+        return box.clickedButton() is delete
+
     def clear_add_form(self, message: str) -> None:
         self._add_text.clear()
         self._add_note.clear()
@@ -497,6 +525,9 @@ class PanelWindow(QWidget):
         self._set_hint(self._edit_hint, message, error=True)
 
     def leave_edit_after_save(self) -> None:
+        self._leave_edit()
+
+    def leave_edit_after_delete(self) -> None:
         self._leave_edit()
 
     def _set_hint(self, label: QLabel, message: str, error: bool) -> None:

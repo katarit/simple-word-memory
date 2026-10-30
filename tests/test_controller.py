@@ -132,6 +132,64 @@ def test_learning_current_word_clears_it_without_scheduling_another(tmp_path):
     conn.close()
 
 
+def test_deleting_current_word_removes_it_and_clears_widget(tmp_path):
+    conn = db.connect(tmp_path / "controller.db")
+    current_id = db.add_word(conn, "mistake")
+    other_id = db.add_word(conn, "other")
+    placeholders = []
+    left = []
+
+    controller = AppController.__new__(AppController)
+    controller._conn = conn
+    controller._current_word_id = current_id
+    controller._previous_word_id = current_id
+    controller._consecutive_new_opportunities = 0
+    controller._panel = SimpleNamespace(
+        set_words=lambda _unlearned, _learned: None,
+        leave_edit_after_delete=lambda: left.append(True),
+    )
+    controller._meaning = meaning_stub()
+    controller._widget = widget_stub(
+        show_placeholder=lambda: placeholders.append(True),
+    )
+
+    controller._on_word_deleted(current_id)
+
+    assert db.get_word(conn, current_id) is None
+    assert db.get_word(conn, other_id) is not None
+    assert controller._current_word_id is None
+    assert controller._previous_word_id is None
+    assert placeholders == [True]
+    assert left == [True]
+    conn.close()
+
+
+def test_deleting_other_word_keeps_current_display(tmp_path):
+    conn = db.connect(tmp_path / "controller.db")
+    current_id = db.add_word(conn, "current")
+    other_id = db.add_word(conn, "mistake")
+    placeholders = []
+
+    controller = AppController.__new__(AppController)
+    controller._conn = conn
+    controller._current_word_id = current_id
+    controller._panel = SimpleNamespace(
+        set_words=lambda _unlearned, _learned: None,
+        leave_edit_after_delete=lambda: None,
+    )
+    controller._meaning = meaning_stub()
+    controller._widget = widget_stub(
+        show_placeholder=lambda: placeholders.append(True),
+    )
+
+    controller._on_word_deleted(other_id)
+
+    assert db.get_word(conn, other_id) is None
+    assert controller._current_word_id == current_id
+    assert placeholders == []
+    conn.close()
+
+
 def test_tick_records_filler_without_advancing_formal_history(tmp_path):
     conn = db.connect(tmp_path / "controller.db")
     word_id = db.add_word(conn, "ephemeral")

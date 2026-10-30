@@ -52,6 +52,7 @@ class AppController:
         self._widget.quit_requested.connect(self._quit)
         self._panel.word_added.connect(self._on_word_added)
         self._panel.word_updated.connect(self._on_word_updated)
+        self._panel.word_deleted.connect(self._on_word_deleted)
         self._panel.learned_toggled.connect(self._on_learned_toggled)
         self._panel.word_opened.connect(self._on_word_opened)
         self._panel.theme_toggled.connect(self._toggle_theme)
@@ -173,15 +174,26 @@ class AppController:
             self._meaning.hide()
             self._widget.update_word_text(text)
 
+    def _on_word_deleted(self, word_id: int) -> None:
+        db.delete_word(self._conn, word_id)
+        self._refresh_panel()
+        self._panel.leave_edit_after_delete()
+        if word_id == self._current_word_id:
+            self._clear_current_word()
+
     def _on_learned_toggled(self, word_id: int, learned: bool) -> None:
         db.set_learned(self._conn, word_id, learned)
         self._refresh_panel()
         if learned and word_id == self._current_word_id:
-            self._meaning.hide()
-            self._current_word_id = None
-            self._previous_word_id = None
-            self._widget.set_can_advance(False)
-            self._widget.show_placeholder()
+            self._clear_current_word()
+
+    def _clear_current_word(self) -> None:
+        """表示中の語が出題対象から外れたとき。次の語は通常のティックまで待つ。"""
+        self._meaning.hide()
+        self._current_word_id = None
+        self._previous_word_id = None
+        self._widget.set_can_advance(False)
+        self._widget.show_placeholder()
 
     def _on_word_opened(self, word_id: int) -> None:
         word = db.get_word(self._conn, word_id)

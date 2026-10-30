@@ -223,6 +223,32 @@ def panel_qss(t: dict[str, str]) -> str:
         font-weight: 600;
         padding: 0 18px;
     }}
+    QPushButton#danger {{
+        background: transparent;
+        color: {t["danger"]};
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 0 18px;
+    }}
+    QMessageBox {{
+        background-color: {t["surface"]};
+    }}
+    QMessageBox QPushButton {{
+        background-color: {t["surface_alt"]};
+        color: {t["ink"]};
+        border: 1px solid {t["border"]};
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        min-width: 72px;
+        min-height: 32px;
+        padding: 0 12px;
+    }}
+    QMessageBox QPushButton:focus {{
+        border: 1px solid {t["accent"]};
+    }}
     QPushButton#back {{
         background: transparent;
         color: {t["ink_muted"]};

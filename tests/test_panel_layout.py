@@ -3,7 +3,10 @@ from __future__ import annotations
 import pytest
 from PySide6.QtWidgets import QApplication, QSizePolicy
 
+from datetime import datetime, timezone
+
 from app import theme
+from app.db import Word
 from app.panel_window import TAB_ADD, TAB_LEARNED, PanelWindow
 
 
@@ -46,4 +49,29 @@ def test_quick_entry_opens_add_tab_and_focuses_word_field(qapp):
 
     assert panel._stack.currentIndex() == TAB_ADD
     assert panel.focusWidget() is panel._add_text
+    panel.close()
+
+
+@pytest.mark.parametrize("confirmed", [True, False])
+def test_delete_emits_only_after_confirmation(qapp, monkeypatch, confirmed):
+    panel = PanelWindow(theme.tokens(False))
+    word = Word(
+        id=5,
+        text="mistake",
+        note="",
+        added_at=datetime.now(timezone.utc),
+        learned=False,
+        learned_at=None,
+        last_filler_at=None,
+    )
+    panel.show_edit(word)
+    asked = []
+    deleted = []
+    monkeypatch.setattr(panel, "_confirm_delete", lambda text: asked.append(text) or confirmed)
+    panel.word_deleted.connect(deleted.append)
+
+    panel._submit_delete()
+
+    assert asked == ["mistake"]
+    assert deleted == ([5] if confirmed else [])
     panel.close()
