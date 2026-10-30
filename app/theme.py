@@ -286,6 +286,20 @@ def panel_qss(t: dict[str, str]) -> str:
         border: none;
         border-bottom: 1px solid {t["border"]};
     }}
+    #rowCurrent {{
+        background-color: {t["surface_alt"]};
+        border: none;
+        border-bottom: 1px solid {t["border"]};
+    }}
+    #currentBadge {{
+        font-size: 11px;
+        font-weight: 600;
+        color: {t["ink"]};
+        background: transparent;
+        border: 1px solid {t["accent"]};
+        border-radius: 4px;
+        padding: 0 6px;
+    }}
     #emptyState {{
         font-size: 13px;
         color: {t["ink_muted"]};

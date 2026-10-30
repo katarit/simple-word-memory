@@ -127,6 +127,13 @@ class WordRow(QFrame):
         word_label.setObjectName("rowWordLearned" if word.learned else "rowWord")
         top_line.addWidget(word_label, 1)
 
+        # ウィジェットに出ている語。似た語が並ぶと見分けにくく押し間違えるため、
+        # 色だけでなく文字でも示す。
+        self._current_badge = QLabel(strings("on_screen"))
+        self._current_badge.setObjectName("currentBadge")
+        self._current_badge.hide()
+        top_line.addWidget(self._current_badge, 0, Qt.AlignVCenter)
+
         date_label = QLabel(strings.date(word.added_at))
         date_label.setObjectName("rowDate")
         top_line.addWidget(date_label, 0, Qt.AlignRight | Qt.AlignBaseline)
@@ -138,6 +145,11 @@ class WordRow(QFrame):
         col_layout.addWidget(note_label)
 
         layout.addWidget(text_col, 1)
+
+    def set_current(self, current: bool) -> None:
+        self.setObjectName("rowCurrent" if current else "row")
+        _repolish(self)
+        self._current_badge.setVisible(current)
 
     def _on_text_clicked(self, event) -> None:
         if event.button() == Qt.LeftButton:
@@ -158,6 +170,8 @@ class PanelWindow(QWidget):
         super().__init__(parent)
         self._s = strings
         self._editing_id: int | None = None
+        self._current_word_id: int | None = None
+        self._rows: dict[int, WordRow] = {}
         self._return_tab = TAB_UNLEARNED
         self._suppress_toggle = False
 
@@ -413,10 +427,21 @@ class PanelWindow(QWidget):
 
     def set_words(self, unlearned: list[Word], learned: list[Word]) -> None:
         """リストを描き直す。QWidget.render() と衝突するため render とは名付けない。"""
+        self._rows = {}
         self._fill_list(self._unlearned_layout, unlearned, self._s("empty_unlearned"))
         self._fill_list(self._learned_layout, learned, self._s("empty_learned"))
         self._tab_badges[TAB_UNLEARNED].setText(str(len(unlearned)))
         self._tab_badges[TAB_LEARNED].setText(str(len(learned)))
+
+    def set_current_word(self, word_id: int | None) -> None:
+        """ウィジェットに出ている語をリストで示す。行は作り直さない。"""
+        previous = self._rows.get(self._current_word_id)
+        if previous is not None:
+            previous.set_current(False)
+        self._current_word_id = word_id
+        current = self._rows.get(word_id)
+        if current is not None:
+            current.set_current(True)
 
     def _fill_list(self, layout: QVBoxLayout, words: list[Word], empty_message: str) -> None:
         self._suppress_toggle = True
@@ -433,6 +458,8 @@ class PanelWindow(QWidget):
         else:
             for word in words:
                 row = WordRow(word, self._s)
+                row.set_current(word.id == self._current_word_id)
+                self._rows[word.id] = row
                 row.toggled.connect(self._on_row_toggled)
                 row.opened.connect(self.open_word)
                 layout.addWidget(row)

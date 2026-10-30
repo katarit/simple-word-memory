@@ -23,6 +23,7 @@ A word carries one free-form note. Because fields like part of speech or pronunc
 - **Manage words** in the right-click menu opens the management panel on **Add**, ready for a new word. If the panel is already open, its current view is preserved
 - Each word carries one free-form note (meaning, example sentences — whatever helps you). It is intentionally not split into part of speech, reading, and so on, so that you can write whatever actually helps you remember
 - Click a word in a list to edit it. The date it was added is recorded automatically and shown read-only
+- The word currently on the widget is marked **On screen** in the list, so it is easy to find among similar words
 - **Delete** a word from its edit view, for example one you added by mistake. You are asked to confirm, and the deletion cannot be undone
 - Checking a word marks it as learned and removes it from the rotation. **Unchecking never discards its learning history**
 - If the word on the widget is marked as learned or deleted, the next word appears right away instead of leaving the widget empty
@@ -97,7 +98,7 @@ Tests need one extra dependency, kept separate so that simply running the app do
 | `app/db.py` | SQLite persistence (words, settings) |
 | `app/scheduler.py` | Selection logic and tuning constants; depends on neither UI nor DB |
 | `app/widget_window.py` | The always-on-top word widget |
-| `app/meaning_window.py` | Temporary content card shown beside the widget |
+| `app/meaning_window.py` | Temporary note card shown beside the widget |
 | `app/panel_window.py` | Management panel (add / lists / edit) |
 | `app/theme.py` | Color and dimension tokens, and Qt stylesheets |
 | `app/i18n.py` | On-screen text in English and Japanese, and display-language detection |
@@ -130,6 +131,7 @@ Tests need one extra dependency, kept separate so that simply running the app do
 - 右クリックメニューの**管理パネルを開く**では、管理パネルが**登録**画面で開き、すぐ単語を入力できる。パネルが既に開いている場合は現在の画面を維持する
 - 単語には自由記述の「内容」を1つだけ持たせる（意味・例文・メモなど何でも）。品詞や読みに分割しないのは、覚えるために本当に役立つことを自由に書けるようにするため
 - リストの単語をクリックすると編集できる。登録日は自動で記録され、読み取り専用で表示される
+- ウィジェットに表示中の単語は、リストで**表示中**と示される。似た単語が並んでいても見分けられる
 - 間違えて登録した単語などは、編集画面から**削除**できる。確認が出て、削除すると元に戻せない
 - チェックすると学習済みになり表示対象から外れる。**チェックを外しても学習の経緯は破棄されない**
 - ウィジェットに表示中の単語を学習済みにしたり削除したりすると、空白にならず次の単語がすぐ表示される

@@ -29,17 +29,28 @@ def widget_stub(**overrides):
     return SimpleNamespace(**values)
 
 
+def panel_stub(**overrides):
+    values = {
+        "set_words": lambda _unlearned, _learned: None,
+        "set_current_word": lambda _word_id: None,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 def test_tick_records_formal_opportunity_with_new_scheduler_contract(tmp_path):
     """旧Selection APIを参照すると、起動直後の最初のtickで失敗する。"""
     conn = db.connect(tmp_path / "controller.db")
     word_id = db.add_word(conn, "ephemeral")
     shown = []
+    marked = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
     controller._current_word_id = None
     controller._previous_word_id = None
     controller._consecutive_new_opportunities = 0
+    controller._panel = panel_stub(set_current_word=marked.append)
     controller._meaning = meaning_stub()
     controller._widget = widget_stub(show_word=shown.append)
 
@@ -51,18 +62,21 @@ def test_tick_records_formal_opportunity_with_new_scheduler_contract(tmp_path):
     assert word.last_opportunity_at is not None
     assert controller._consecutive_new_opportunities == 1
     assert shown == ["ephemeral"]
+    assert marked == [word_id]
     conn.close()
 
 
 def test_tick_resets_new_streak_when_no_unlearned_words(tmp_path):
     conn = db.connect(tmp_path / "controller.db")
     placeholders = []
+    marked = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
     controller._current_word_id = 1
     controller._previous_word_id = 1
     controller._consecutive_new_opportunities = 2
+    controller._panel = panel_stub(set_current_word=marked.append)
     controller._meaning = meaning_stub()
     controller._widget = widget_stub(
         show_placeholder=lambda: placeholders.append(True),
@@ -72,6 +86,7 @@ def test_tick_resets_new_streak_when_no_unlearned_words(tmp_path):
 
     assert controller._consecutive_new_opportunities == 0
     assert placeholders == [True]
+    assert marked == [None]
     conn.close()
 
 
@@ -114,7 +129,7 @@ def test_learning_current_word_shows_next_word_immediately(tmp_path):
     controller._current_word_id = current_id
     controller._previous_word_id = current_id
     controller._consecutive_new_opportunities = 0
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
         set_words=lambda _unlearned, _learned: None,
     )
     controller._meaning = meaning_stub()
@@ -139,7 +154,7 @@ def test_learning_last_word_shows_placeholder(tmp_path):
     controller._current_word_id = only_id
     controller._previous_word_id = only_id
     controller._consecutive_new_opportunities = 0
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
         set_words=lambda _unlearned, _learned: None,
     )
     controller._meaning = meaning_stub()
@@ -168,7 +183,7 @@ def test_deleting_current_word_removes_it_and_shows_next_word(tmp_path):
     controller._current_word_id = current_id
     controller._previous_word_id = current_id
     controller._consecutive_new_opportunities = 0
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
         set_words=lambda _unlearned, _learned: None,
         leave_edit_after_delete=lambda: left.append(True),
     )
@@ -195,7 +210,7 @@ def test_deleting_other_word_keeps_current_display(tmp_path):
     controller = AppController.__new__(AppController)
     controller._conn = conn
     controller._current_word_id = current_id
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
         set_words=lambda _unlearned, _learned: None,
         leave_edit_after_delete=lambda: None,
     )
@@ -223,6 +238,7 @@ def test_tick_records_filler_without_advancing_formal_history(tmp_path):
     controller._current_word_id = None
     controller._previous_word_id = None
     controller._consecutive_new_opportunities = 1
+    controller._panel = panel_stub()
     controller._meaning = meaning_stub()
     controller._widget = widget_stub()
 
@@ -273,6 +289,7 @@ def test_manual_next_records_action_advances_word_and_restarts_timer(tmp_path):
     controller._previous_word_id = first_id
     controller._consecutive_new_opportunities = 0
     controller._last_manual_next_display_token = None
+    controller._panel = panel_stub()
     controller._meaning = meaning_stub()
     controller._widget = widget_stub(show_word=shown.append)
     controller._timer = SimpleNamespace(start=lambda: timer_starts.append(True))
@@ -301,6 +318,7 @@ def test_manual_next_ignores_duplicate_event_from_same_display(tmp_path):
     controller._previous_word_id = first_id
     controller._consecutive_new_opportunities = 0
     controller._last_manual_next_display_token = None
+    controller._panel = panel_stub()
     controller._meaning = meaning_stub()
     controller._widget = widget_stub()
     controller._timer = SimpleNamespace(start=lambda: None)
@@ -357,7 +375,7 @@ def test_open_panel_from_menu_starts_on_quick_entry(tmp_path):
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
         isVisible=lambda: False,
         set_words=lambda _unlearned, _learned: calls.append("refresh"),
         show=lambda: calls.append("show"),
@@ -379,7 +397,7 @@ def test_open_panel_from_menu_preserves_visible_panel_view(tmp_path):
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
         isVisible=lambda: True,
         set_words=lambda _unlearned, _learned: None,
         show=lambda: None,
@@ -403,7 +421,7 @@ def test_refresh_panel_updates_manual_next_availability(tmp_path):
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
-    controller._panel = SimpleNamespace(
+    controller._panel = panel_stub(
         set_words=lambda _unlearned, _learned: None,
     )
     controller._widget = widget_stub(

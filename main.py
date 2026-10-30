@@ -86,6 +86,7 @@ class AppController:
             self._current_word_id = None
             self._previous_word_id = None
             self._consecutive_new_opportunities = 0
+            self._panel.set_current_word(None)
             self._widget.set_can_advance(False)
             self._widget.show_placeholder()
             return
@@ -103,6 +104,7 @@ class AppController:
 
         self._current_word_id = word.id
         self._previous_word_id = word.id
+        self._panel.set_current_word(word.id)
         self._widget.set_can_advance(len(unlearned) > 1)
         self._widget.show_word(word.text)
 

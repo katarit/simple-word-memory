@@ -78,3 +78,41 @@ def test_delete_emits_only_after_confirmation(qapp, monkeypatch, confirmed):
     assert asked == ["mistake"]
     assert deleted == ([5] if confirmed else [])
     panel.close()
+
+
+def _word(word_id: int, text: str) -> Word:
+    return Word(
+        id=word_id,
+        text=text,
+        note="",
+        added_at=datetime.now(timezone.utc),
+        learned=False,
+        learned_at=None,
+        last_filler_at=None,
+    )
+
+
+def _current_rows(panel: PanelWindow) -> list[int]:
+    return [word_id for word_id, row in panel._rows.items() if row.objectName() == "rowCurrent"]
+
+
+def test_word_on_screen_is_marked_in_list_and_survives_redraw(qapp):
+    panel = PanelWindow(theme.tokens(False), JA)
+    words = [_word(2, "adopt"), _word(1, "adapt")]
+    panel.set_words(words, [])
+
+    panel.set_current_word(2)
+    assert _current_rows(panel) == [2]
+    assert panel._rows[2]._current_badge.isVisibleTo(panel._rows[2])
+    assert not panel._rows[1]._current_badge.isVisibleTo(panel._rows[1])
+
+    panel.set_current_word(1)
+    assert _current_rows(panel) == [1]
+
+    # 学習済みの切り替え等でリストを描き直しても印は残る
+    panel.set_words(words, [])
+    assert _current_rows(panel) == [1]
+
+    panel.set_current_word(None)
+    assert _current_rows(panel) == []
+    panel.close()
