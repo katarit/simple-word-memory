@@ -330,15 +330,33 @@ def test_manual_next_does_nothing_when_only_one_unlearned_word_exists(tmp_path):
     conn.close()
 
 
-def test_left_click_opens_quick_entry_and_current_meaning(tmp_path):
+def test_left_click_shows_only_current_meaning(tmp_path):
     conn = db.connect(tmp_path / "controller.db")
     word_id = db.add_word(conn, "ephemeral", "儚い")
-    calls = []
     shown_notes = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
     controller._current_word_id = word_id
+    # パネルに触れたら AttributeError で落ちる
+    controller._panel = SimpleNamespace()
+    controller._widget = widget_stub(frameGeometry=lambda: "anchor")
+    controller._meaning = meaning_stub(
+        show_note=lambda note, anchor: shown_notes.append((note, anchor))
+    )
+
+    controller._show_meaning()
+
+    assert shown_notes == [("儚い", "anchor")]
+    conn.close()
+
+
+def test_open_panel_from_menu_starts_on_quick_entry(tmp_path):
+    conn = db.connect(tmp_path / "controller.db")
+    calls = []
+
+    controller = AppController.__new__(AppController)
+    controller._conn = conn
     controller._panel = SimpleNamespace(
         isVisible=lambda: False,
         set_words=lambda _unlearned, _learned: calls.append("refresh"),
@@ -347,26 +365,20 @@ def test_left_click_opens_quick_entry_and_current_meaning(tmp_path):
         raise_=lambda: calls.append("raise"),
         activateWindow=lambda: calls.append("activate"),
     )
-    controller._widget = widget_stub(frameGeometry=lambda: "anchor")
-    controller._meaning = meaning_stub(
-        show_note=lambda note, anchor: shown_notes.append((note, anchor))
-    )
+    controller._widget = widget_stub()
 
-    controller._open_quick_entry_and_meaning()
+    controller._open_panel()
 
     assert calls == ["refresh", "show", "quick", "raise", "activate"]
-    assert shown_notes == [("儚い", "anchor")]
     conn.close()
 
 
-def test_left_click_preserves_visible_panel_view(tmp_path):
+def test_open_panel_from_menu_preserves_visible_panel_view(tmp_path):
     conn = db.connect(tmp_path / "controller.db")
-    word_id = db.add_word(conn, "ephemeral", "儚い")
     quick_entries = []
 
     controller = AppController.__new__(AppController)
     controller._conn = conn
-    controller._current_word_id = word_id
     controller._panel = SimpleNamespace(
         isVisible=lambda: True,
         set_words=lambda _unlearned, _learned: None,
@@ -376,9 +388,8 @@ def test_left_click_preserves_visible_panel_view(tmp_path):
         activateWindow=lambda: None,
     )
     controller._widget = widget_stub()
-    controller._meaning = meaning_stub()
 
-    controller._open_quick_entry_and_meaning()
+    controller._open_panel()
 
     assert quick_entries == []
     conn.close()

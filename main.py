@@ -45,7 +45,7 @@ class AppController:
         self._meaning = MeaningWindow(tokens, strings)
         self._panel.apply_theme(tokens, self._dark)
 
-        self._widget.clicked.connect(self._open_quick_entry_and_meaning)
+        self._widget.clicked.connect(self._show_meaning)
         self._widget.panel_requested.connect(self._open_panel)
         self._widget.next_requested.connect(self._on_next_requested)
         self._widget.drag_started.connect(self._meaning.hide)
@@ -108,12 +108,8 @@ class AppController:
 
     # --- パネル操作 ---------------------------------------------------------
     def _open_panel(self) -> None:
-        self._refresh_panel()
-        self._panel.show()
-        self._panel.raise_()
-        self._panel.activateWindow()
-
-    def _open_quick_entry_and_meaning(self) -> None:
+        """右クリックの「管理パネルを開く」。思いついた語をすぐ登録できるよう、
+        閉じていたなら登録タブで開く。開いていれば今の画面を保つ。"""
         was_visible = self._panel.isVisible()
         self._refresh_panel()
         self._panel.show()
@@ -122,6 +118,8 @@ class AppController:
         self._panel.raise_()
         self._panel.activateWindow()
 
+    def _show_meaning(self) -> None:
+        """左クリック。登録語が増えると、クリックの目的は意味の確認が主になる。"""
         if self._current_word_id is None:
             self._meaning.hide()
             return
